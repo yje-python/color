@@ -14,28 +14,24 @@
           {{ selectedCategory }}
         </div>
 
-        <!-- 밝기 필터 -->
-        <div class="filter-buttons">
-          <button
-            :class="{ active: brightness === 'all' }"
-            @click="setBrightness('all')"
-          >
-            All
-          </button>
+        <!-- ===== 필터 버튼 ===== -->
+        <div class="style-list">
 
           <button
-            :class="{ active: brightness === 'light' }"
-            @click="setBrightness('light')"
+            v-for="style in ['light', 'dark', 'vivid', 'mute']"
+            :key="style"
+
+            class="style-button"
+
+            :class="{
+              active: selectedStyles.includes(style)
+            }"
+
+            @click="toggleStyle(style)"
           >
-            Light
+            {{ style }}
           </button>
 
-          <button
-            :class="{ active: brightness === 'dark' }"
-            @click="setBrightness('dark')"
-          >
-            Dark
-          </button>
         </div>
 
       </div>
@@ -43,9 +39,10 @@
       <!-- 색상 카드 -->
       <div class="color-grid">
         <div
-          v-for="color in filteredColors"
+          v-for="color in pagedColors"
           :key="color.code"
           class="color-card"
+          @click="router.push(`/color/${color.code.replace('#', '')}`)"
         >
           <div
             class="color-preview"
@@ -55,215 +52,862 @@
         </div>
       </div>
 
+      <div class="pagination">
+
+        <!-- 첫 페이지 -->
+        <button
+          @click="goPage(1)"
+          :disabled="currentPage === 1"
+        >
+          &lt;&lt;
+        </button>
+
+        <!-- 이전 -->
+        <button
+          @click="goPage(currentPage - 1)"
+          :disabled="currentPage === 1"
+        >
+          &lt;
+        </button>
+
+        <!-- 페이지 번호 -->
+        <button
+          v-for="page in visiblePages"
+          :key="page"
+
+          :class="{
+            active: currentPage === page
+          }"
+
+          @click="goPage(page)"
+        >
+          {{ page }}
+        </button>
+
+        <!-- 다음 -->
+        <button
+          @click="goPage(currentPage + 1)"
+          :disabled="currentPage === totalPages"
+        >
+          &gt;
+        </button>
+
+        <!-- 마지막 -->
+        <button
+          @click="goPage(totalPages)"
+          :disabled="currentPage === totalPages"
+        >
+          &gt;&gt;
+        </button>
+
+      </div>
+
     </main>
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import Sidebar from '@/views/Sidebar.vue'
 import { useColorStore } from '@/stores/color'
+import { useRouter } from 'vue-router'
+import { BASE_COLOR_RANGES } from '@/constants/baseColors'
+import { ACHROMATIC_RULES } from '@/constants/colorRules'
+import { STYLE_RULES } from '@/constants/styleRules'
 
 const colorStore = useColorStore()
+const router = useRouter()
 
-const brightness = ref<'all' | 'light' | 'dark'>('all')
 
-/* ===== 샘플 전체 데이터 (테스트용) ===== */
-const allColors = [
-  { code: '#ff0000' }, { code: '#ff6666' }, { code: '#cc0000' },
-  { code: '#00ff00' }, { code: '#66ff66' }, { code: '#009900' },
-  { code: '#0000ff' }, { code: '#6666ff' }, { code: '#000099' },
-  { code: '#00ffff' }, { code: '#66ffff' },
-  { code: '#ff00ff' }, { code: '#ff66ff' },
-]
+/* ===== 페이지네이션 ===== */
+const currentPage = ref(1)
 
-/* ===== 카테고리 분류 ===== */
-const getCategory = (hex: string) => {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
+const ITEMS_PER_PAGE = 20
+
+/* ===== 전체 색상 자동 생성 ===== */
+const allColors = computed(() => {
+
+  const colors: {
+    code: string
+    category: string
+    tone: string
+    styles: string[]
+    saturationType: string
+  }[] = []
+
+  const values = []
+
+  for (let i = 0; i <= 255; i += 4) {
+    values.push(i)
+  }
+
+  if (values[values.length - 1] !== 255) {
+    values.push(255)
+  }
+
+  for (const r of values) {
+
+    for (const g of values) {
+
+      for (const b of values) {
+
+        const hex =
+          `#${r.toString(16).padStart(2, '0')}` +
+          `${g.toString(16).padStart(2, '0')}` +
+          `${b.toString(16).padStart(2, '0')}`
+
+        const hsv = hexToHSV(hex)
+
+        colors.push({
+          code: hex,
+
+          category: getCategory(hex),
+
+          tone: getTone(hex),
+
+          styles: getStyles(hex),
+
+          saturationType:
+            hsv.s >= 50
+              ? 'vivid'
+              : 'muted',
+        })
+      }
+    }
+  }
+
+  return colors
+})
+
+/* ===== HEX -> HSV ===== */
+const hexToHSV = (hex: string) => {
+
+  const r = parseInt(hex.slice(1, 3), 16) / 255
+  const g = parseInt(hex.slice(3, 5), 16) / 255
+  const b = parseInt(hex.slice(5, 7), 16) / 255
 
   const max = Math.max(r, g, b)
   const min = Math.min(r, g, b)
+
   const delta = max - min
 
-  if (delta < 10) {
-    if (max < 50) return 'Black'
-    if (max > 200) return 'White'
-    return 'Gray'
+  let h = 0
+
+  if (delta !== 0) {
+
+    if (max === r) {
+      h = ((g - b) / delta) % 6
+    }
+
+    else if (max === g) {
+      h = (b - r) / delta + 2
+    }
+
+    else {
+      h = (r - g) / delta + 4
+    }
+
+    h *= 60
+
+    if (h < 0) {
+      h += 360
+    }
   }
 
-  let hue = 0
-  if (max === r) hue = ((g - b) / delta) % 6
-  else if (max === g) hue = (b - r) / delta + 2
-  else hue = (r - g) / delta + 4
+  const s =
+    max === 0
+      ? 0
+      : (delta / max) * 100
 
-  hue = Math.round(hue * 60)
-  if (hue < 0) hue += 360
+  const v = max * 100
 
-  if (hue < 18) return 'Red'
-  if (hue < 36) return 'Orange'
-  if (hue < 54) return 'Yellow'
-  if (hue < 90) return 'Lime'
-  if (hue < 150) return 'Green'
-  if (hue < 210) return 'Teal'
-  if (hue < 255) return 'Blue'
-  if (hue < 300) return 'Purple'
-  if (hue < 330) return 'Pink'
-  return 'Red'
+  return { h, s, v }
 }
 
-/* ===== 밝기 ===== */
-const getBrightness = (hex: string) => {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
+/* ===== 무채색 ===== */
+/* ===== 무채색 ===== */
+const getAchromaticCategory = (
+  h: number,
+  s: number,
+  v: number,
+) => {
 
-  const luminance = (0.299*r + 0.587*g + 0.114*b) / 255
-  return luminance > 0.5 ? 'light' : 'dark'
+  /* ===== black ===== */
+  if (
+    v <= ACHROMATIC_RULES.black.maxV!
+  ) {
+    return 'black'
+  }
+
+  /* ===== white ===== */
+  if (
+    v >= ACHROMATIC_RULES.white.minV! &&
+    s <= ACHROMATIC_RULES.white.maxS!
+  ) {
+    return 'white'
+  }
+
+  /* ===== gray ===== */
+  const gray =
+    ACHROMATIC_RULES.gray
+
+  const grayHueMatch =
+    gray.hueRanges!.some(
+      ([min, max]) =>
+        h >= min && h < max
+    )
+
+  if (
+    v >= gray.minV! &&
+    v <= gray.maxV! &&
+    s <= gray.maxS! &&
+    !grayHueMatch
+  ) {
+    return 'gray'
+  }
+
+  return null
 }
 
-/* ===== 선택된 카테고리 ===== */
-const selectedCategory = computed(() => colorStore.selectedCategory)
+/* ===== 유채색 ===== */
+const getChromaticCategory = (
+  h: number,
+) => {
 
-/* ===== 최종 필터 ===== */
+  for (const color of BASE_COLOR_RANGES) {
+
+    if (color.name === 'red') {
+
+      if (
+        h >= color.min ||
+        h < color.max
+      ) {
+        return color.name
+      }
+    }
+
+    else {
+
+      if (
+        h >= color.min &&
+        h < color.max
+      ) {
+        return color.name
+      }
+    }
+  }
+
+  return 'unknown'
+}
+
+/* ===== category ===== */
+const getCategory = (hex: string) => {
+
+  const { h, s, v } = hexToHSV(hex)
+
+  const achromatic =
+    getAchromaticCategory(h, s, v)
+
+  if (achromatic) {
+    return achromatic
+  }
+
+  return getChromaticCategory(h)
+}
+
+/* ===== tone ===== */
+const getTone = (hex: string) => {
+
+  const { v } = hexToHSV(hex)
+
+  if (v >= 75) {
+    return 'light'
+  }
+
+  if (v > 35) {
+    return 'normal'
+  }
+
+  return 'dark'
+}
+
+/* ===== styles ===== */
+/* ===== styles ===== */
+const getStyles = (hex: string) => {
+
+  const { h, s, v } = hexToHSV(hex)
+
+  const styles: string[] = []
+
+  const isGray =
+    s <= ACHROMATIC_RULES.gray.maxS
+
+  const isWarm =
+    h < 70 || h >= 300
+
+  const isCool =
+    h >= 70 && h < 300
+
+  /* ===== vivid ===== */
+  if (
+    s >= STYLE_RULES.vivid.minS! &&
+    v >= STYLE_RULES.vivid.minV!
+  ) {
+    styles.push('vivid')
+  }
+
+  /* ===== muted ===== */
+  if (
+    s >= STYLE_RULES.muted.minS! &&
+    s < STYLE_RULES.muted.maxS!
+  ) {
+    styles.push('muted')
+  }
+
+  /* ===== pastel ===== */
+  if (
+    v >= STYLE_RULES.pastel.minV! &&
+    s < STYLE_RULES.pastel.maxS!
+  ) {
+    styles.push('pastel')
+  }
+
+  /* ===== neon ===== */
+  if (
+    v >= STYLE_RULES.neon.minV! &&
+    s >= STYLE_RULES.neon.minS!
+  ) {
+    styles.push('neon')
+  }
+
+  /* ===== vintage ===== */
+  if (
+    s < STYLE_RULES.vintage.maxS! &&
+    v >= STYLE_RULES.vintage.minV! &&
+    v < STYLE_RULES.vintage.maxV!
+  ) {
+    styles.push('vintage')
+  }
+
+  /* ===== earth ===== */
+  if (
+    h >= STYLE_RULES.earth.minH! &&
+    h < STYLE_RULES.earth.maxH! &&
+    s >= STYLE_RULES.earth.minS! &&
+    s < STYLE_RULES.earth.maxS! &&
+    v >= STYLE_RULES.earth.minV! &&
+    v < STYLE_RULES.earth.maxV!
+  ) {
+    styles.push('earth')
+  }
+
+  /* ===== warm ===== */
+  if (isWarm) {
+    styles.push('warm')
+  }
+
+  /* ===== cool ===== */
+  if (isCool) {
+    styles.push('cool')
+  }
+
+  /* ===== spring ===== */
+  const spring = STYLE_RULES.spring
+
+  if (
+    spring.hueRanges!.some(
+      ([min, max]) => h >= min && h < max
+    ) &&
+    v >= spring.minV! &&
+    s >= spring.minS! &&
+    (!spring.preferWarm || isWarm)
+  ) {
+    styles.push('spring')
+  }
+
+  /* ===== summer ===== */
+  const summer = STYLE_RULES.summer
+
+  const summerHueMatch =
+    summer.hueRanges!.some(
+      ([min, max]) => h >= min && h < max
+    )
+
+  if (
+    (
+      summerHueMatch ||
+      (summer.allowGrays && isGray)
+    ) &&
+    v >= summer.minV! &&
+    s < summer.maxS!
+  ) {
+    styles.push('summer')
+  }
+
+  /* ===== fall ===== */
+  const fall = STYLE_RULES.fall
+
+  if (
+    fall.hueRanges!.some(
+      ([min, max]) => h >= min && h < max
+    ) &&
+    v >= fall.minV! &&
+    v < fall.maxV! &&
+    s >= fall.minS!
+  ) {
+    styles.push('fall')
+  }
+
+  /* ===== winter ===== */
+  const winter = STYLE_RULES.winter
+
+  const winterHueMatch =
+    winter.hueRanges!.some(
+      ([min, max]) => h >= min && h < max
+    )
+
+  if (
+    winterHueMatch &&
+    winter.customFilter!?.(h, s, v)
+  ) {
+    styles.push('winter')
+  }
+
+  /* ===== metallic ===== */
+
+  /* gold */
+  const gold =
+    STYLE_RULES.metallic.gold
+
+  if (
+    h >= gold.minH &&
+    h < gold.maxH &&
+    s >= gold.minS &&
+    s < gold.maxS &&
+    v >= gold.minV &&
+    v < gold.maxV
+  ) {
+    styles.push('gold')
+  }
+
+
+/* silver */
+const silver =
+  STYLE_RULES.metallic.silver
+
+const silverHueMatch =
+  silver.hueRanges!.some(
+    ([min, max]: [number, number]) =>
+      h >= min && h < max
+  )
+
+if (
+
+  /* 매우 낮은 채도 */
+  s <= silver.maxS &&
+
+  /* 실버 명도 범위 */
+  v >= silver.minV &&
+  v <= silver.maxV &&
+
+  /* 완전 무채색 허용 */
+  (
+    s === 0 ||
+
+    /* 아주 미세한 색감은
+       blue/purple 계열만 허용 */
+    silverHueMatch
+  )
+
+) {
+  styles.push('silver')
+}
+
+  /* bronze */
+  const bronze =
+    STYLE_RULES.metallic.bronze
+
+  if (
+    h >= bronze.minH &&
+    h < bronze.maxH &&
+    s >= bronze.minS &&
+    s < bronze.maxS &&
+    v >= bronze.minV &&
+    v < bronze.maxV
+  ) {
+    styles.push('bronze')
+  }
+
+  return styles
+}
+
+/* ===== 선택된 category ===== */
+const selectedCategory = computed(
+  () => colorStore.selectedCategory
+)
+const selectedStyles = ref<string[]>([])
+
+const toggleStyle = (style: string) => {
+
+  const toneStyles = [
+    'light',
+    'dark',
+  ]
+
+  const saturationStyles = [
+    'vivid',
+    'mute',
+  ]
+
+  /* 이미 선택된 경우 해제 */
+  if (
+    selectedStyles.value.includes(style)
+  ) {
+    selectedStyles.value =
+      selectedStyles.value.filter(
+        s => s !== style
+      )
+
+    return
+  }
+
+  /* ===== light/dark ===== */
+  if (
+    toneStyles.includes(style)
+  ) {
+
+    /* 기존 tone 제거 */
+    selectedStyles.value =
+      selectedStyles.value.filter(
+        s => !toneStyles.includes(s)
+      )
+
+    selectedStyles.value.push(style)
+
+    return
+  }
+
+  /* ===== vivid/mute ===== */
+  if (
+    saturationStyles.includes(style)
+  ) {
+
+    /* 기존 saturation 제거 */
+    selectedStyles.value =
+      selectedStyles.value.filter(
+        s => !saturationStyles.includes(s)
+      )
+
+    selectedStyles.value.push(style)
+
+    return
+  }
+}
+
+/* ===== 필터 ===== */
 const filteredColors = computed(() => {
-  return allColors.filter(c => {
-    const categoryMatch = getCategory(c.code) === selectedCategory.value
 
-    if (brightness.value === 'all') return categoryMatch
+  return allColors.value.filter(color => {
 
-    const brightMatch = getBrightness(c.code) === brightness.value
+    /* ===== category ===== */
+    const categoryMatch =
+      color.category === selectedCategory.value
 
-    return categoryMatch && brightMatch
+    const styleCategoryMatch =
+      color.styles.includes(
+        selectedCategory.value
+      )
+
+    if (
+      !categoryMatch &&
+      !styleCategoryMatch
+    ) {
+      return false
+    }
+
+    /* ===== 스타일 필터 없음 ===== */
+    if (
+      selectedStyles.value.length === 0
+    ) {
+      return true
+    }
+
+    /* ===== 다중 스타일 필터 ===== */
+    return selectedStyles.value.every(style => {
+
+      /* light / dark */
+      if (
+        style === 'light' ||
+        style === 'dark'
+      ) {
+        return color.tone === style
+      }
+
+      /* vivid / mute */
+      if (style === 'vivid') {
+        return color.saturationType === 'vivid'
+      }
+
+      if (style === 'mute') {
+        return color.saturationType === 'muted'
+      }
+
+      return true
+    })
   })
 })
 
-/* ===== 이벤트 ===== */
-const setBrightness = (type: 'all' | 'light' | 'dark') => {
-  brightness.value = type
+/* ===== 총 페이지 ===== */
+const totalPages = computed(() => {
+
+  return Math.ceil(
+    filteredColors.value.length /
+    ITEMS_PER_PAGE
+  )
+})
+
+/* ===== 현재 페이지 데이터 ===== */
+const pagedColors = computed(() => {
+
+  const start =
+    (currentPage.value - 1)
+    * ITEMS_PER_PAGE
+
+  const end =
+    start + ITEMS_PER_PAGE
+
+  return filteredColors.value.slice(
+    start,
+    end,
+  )
+})
+
+/* ===== category 변경 시 1페이지 ===== */
+watch(
+  () => [
+    selectedCategory.value,
+    selectedStyles.value,
+  ],
+
+  () => {
+    currentPage.value = 1
+  },
+
+  { deep: true }
+)
+
+/* ===== 페이지 이동 ===== */
+const goPage = (page: number) => {
+
+  if (
+    page < 1 ||
+    page > totalPages.value
+  ) {
+    return
+  }
+
+  currentPage.value = page
+
+  window.scrollTo(0, 0)
 }
+
+/* ===== 현재 보이는 페이지 번호 ===== */
+const visiblePages = computed(() => {
+
+  const groupSize = 5
+
+  const start =
+    Math.floor(
+      (currentPage.value - 1)
+      / groupSize
+    ) * groupSize + 1
+
+  const end = Math.min(
+    start + groupSize - 1,
+    totalPages.value,
+  )
+
+  return Array.from(
+    { length: end - start + 1 },
+
+    (_, i) => start + i
+  )
+})
+
+
 </script>
 
 <style scoped>
-/* ===== 전체 레이아웃 ===== */
+
+/* ===== 전체 ===== */
 .layout {
   display: flex;
 }
 
-/* ===== 메인 영역 ===== */
+/* ===== 메인 ===== */
 .category-page {
-  margin-left: 260px;     /* 🔥 sidebar width */
-  margin-top: 64px;       /* 🔥 navbar 고려 */
+  margin-left: 260px;
 
   width: 100%;
-  min-height: calc(100vh - 64px);
+  min-height: 100vh;
 
-  padding: 40px;
+  padding: 180px 60px 60px;
+
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-/* ===== 헤더 ===== */
+/* ===== 상단 고정 ===== */
 .category-header {
-  margin-bottom: 40px;
+  position: fixed;
+
+  top: 50px;
+  left: 260px;
+  right: 0;
+
+  z-index: 20;
+
+  height: 90px;
+
+  background: white;
 
   display: flex;
   align-items: center;
   gap: 20px;
+
+  padding: 0 40px;
+
+  border-bottom: 1px solid #eee;
 }
 
-/* 색상 배지 */
+/* ===== badge ===== */
 .category-badge {
   padding: 12px 28px;
+
   border: 2px solid #ddd;
   border-radius: 24px;
 
   font-size: 20px;
   font-weight: bold;
+
+  text-transform: capitalize;
 }
 
-/* 필터 버튼 */
-.filter-buttons {
+/* ===== 버튼 ===== */
+.style-list {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-.filter-buttons button {
+.style-button {
   padding: 8px 16px;
+
   border-radius: 20px;
   border: none;
+
   background: #e5e5e5;
+
   cursor: pointer;
+
+  transition: 0.2s;
 }
 
-.filter-buttons button.active {
-  background: #333;
-  color: #fff;
+
+
+.style-button.active {
+  background: #222;
+  color: white;
 }
 
-/* ===== 카드 그리드 ===== */
+/* ===== grid ===== */
 .color-grid {
   display: grid;
-  grid-template-columns: repeat(5, 140px);
-  gap: 24px;
-  justify-content: start;
-}
-/* 태블릿 */
-@media (max-width: 1200px) {
-  .color-grid {
-    grid-template-columns: repeat(4, 140px);
-  }
+
+  grid-template-columns: repeat(5, 160px);
+
+  gap: 40px;
+
+  justify-content: center;
 }
 
-/* 모바일 */
-@media (max-width: 900px) {
-  .color-grid {
-    grid-template-columns: repeat(3, 140px);
-  }
-}
-
-@media (max-width: 600px) {
-  .color-grid {
-    grid-template-columns: repeat(2, 140px);
-  }
-}
-
-/* 카드 */
+/* ===== 카드 ===== */
 .color-card {
-  width: 140px;
-  background: #fff;
+  width: 160px;
 
-  border-radius: 12px;
+  background: white;
+
+  border-radius: 16px;
+
   overflow: hidden;
 
-  box-shadow: 4px 4px 8px rgba(0,0,0,0.2);
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.12);
 
   transition: 0.2s;
 }
 
 .color-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-6px);
 }
 
-/* 색상 영역 */
+/* ===== 미리보기 ===== */
 .color-preview {
   width: 100%;
-  height: 120px;
+  height: 140px;
 }
 
-/* HEX */
+/* ===== hex ===== */
 .color-code {
-  width: 100%;
-  padding: 10px;
+  padding: 14px;
 
   text-align: center;
-  font-weight: bold;
+
+  font-weight: 700;
 }
+
+/* ===== pagination ===== */
+.pagination {
+  margin-top: 70px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  flex-wrap: wrap;
+}
+
+.pagination button {
+
+  min-width: 42px;
+  height: 42px;
+
+  padding: 0 12px;
+
+  border: none;
+  border-radius: 12px;
+
+  background: #eee;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #d8d8d8;
+}
+
+.pagination button.active {
+  background: #222;
+  color: white;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 </style>

@@ -24,7 +24,12 @@
           >
             <div
               class="palette-chip"
-              :style="{ backgroundColor: color }"
+              :style="{ backgroundColor: color }"  
+              @click="
+                router.push(
+                  `/color/${color.replace('#', '')}`
+                )
+              "
             ></div>
             <p class="palette-code">{{ color }}</p>
           </div>
@@ -74,39 +79,77 @@
           <!-- 🔥 UI 카드 -->
           <div
             class="example"
-            :class="{ dark: isDark, light: !isDark }"
+            :style="{
+              background: isDark
+                ? darkBg
+                : '#ffffff',
+
+              border: `1px solid ${hexToRgba(mainColor, 0.15)}`,
+
+              boxShadow: `0 10px 30px ${hexToRgba(mainColor, 0.12)}`
+            }"
           >
-            <h2 :style="{ color: isDark ? palette[4] : palette[0] }">
+            <h2
+              :style="{
+                color: isDark
+                  ? lightBg
+                  : mainColor
+              }"
+            >
               Title
             </h2>
 
             <div class="buttons">
+
               <button
                 class="btn primary"
-                :style="{ background: palette[2], color: '#fff' }"
+                :style="{
+                  background: mainColor,
+                  color: '#fff'
+                }"
               >
                 Primary
               </button>
 
               <button
+                class="btn secondary"
+                :style="{
+                  background: secondaryColor,
+                  color: '#fff'
+                }"
+              >
+                Secondary
+              </button>
+
+              <button
                 class="btn outline"
                 :style="{
-                  borderColor: palette[2],
-                  color: palette[2]
+                  borderColor: mainColor,
+                  color: mainColor
                 }"
               >
                 Outline
               </button>
 
               <button
-                class="btn hover"
-                :style="{ background: palette[1], color: '#fff' }"
+                class="btn accent"
+                :style="{
+                  background: accentColor,
+                  color: '#fff'
+                }"
               >
-                Hover
+                Accent
               </button>
+
             </div>
 
-            <p :style="{ color: isDark ? palette[4] : palette[0] }">
+            <p
+              :style="{
+                color: isDark
+                  ? '#f5f5f5'
+                  : '#444'
+              }"
+            >
               This is an example of the color palette.
             </p>
           </div>
@@ -120,35 +163,64 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-
-/* 모드 상태 */
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+const route = useRoute()
+const router = useRouter()
 const isDark = ref(false)
 
-/* 기준 색 */
-const base = '#57bb94'
+/* ===== palette ===== */
+const palette = computed(() => {
 
-/* 밝기 조절 */
-const adjust = (hex: string, amount: number) => {
-  let r = parseInt(hex.slice(1, 3), 16)
-  let g = parseInt(hex.slice(3, 5), 16)
-  let b = parseInt(hex.slice(5, 7), 16)
+  const raw =
+    route.query.colors as string
 
-  r = Math.min(255, Math.max(0, r + amount))
-  g = Math.min(255, Math.max(0, g + amount))
-  b = Math.min(255, Math.max(0, b + amount))
+  if (!raw) {
+    return [
+      '#398d6c',
+      '#409f7a',
+      '#57bb94',
+      '#69c2a0',
+      '#7ed0b0',
+    ]
+  }
 
-  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`
+  return raw.split(',')
+})
+
+/* ===== 핵심 색 ===== */
+const mainColor = computed(() => {
+  return palette.value[2]
+})
+
+const secondaryColor = computed(() => {
+  return palette.value[1]
+})
+
+const accentColor = computed(() => {
+  return palette.value[3]
+})
+
+const darkBg = computed(() => {
+  return palette.value[0]
+})
+
+const lightBg = computed(() => {
+  return palette.value[4]
+})
+
+/* ===== hex -> rgba ===== */
+const hexToRgba = (
+  hex: string,
+  alpha: number
+) => {
+
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
-
-/* 팔레트 */
-const palette = [
-  adjust(base, -60),
-  adjust(base, -30),
-  base,
-  adjust(base, 30),
-  adjust(base, 60),
-]
 </script>
 
 <style scoped>
@@ -208,6 +280,24 @@ const palette = [
 .palette-chip {
   width: 160px;
   height: 160px;
+  cursor: pointer;
+  border-radius: 24px;
+
+  box-shadow:
+    0 10px 20px rgba(0,0,0,0.12);
+
+  transition: 0.25s;
+}
+
+.palette-chip:hover {
+  transform:
+    translateY(-6px)
+    scale(1.03);
+}
+
+.palette-chip:active {
+  transform:
+    scale(0.97);
 }
 
 .palette-code {
@@ -282,10 +372,24 @@ const palette = [
 }
 
 .btn {
-  padding: 8px 16px;
+  padding: 10px 18px;
+
   border-radius: 20px;
+
   border: none;
+
   cursor: pointer;
+
+  transition: 0.2s;
+
+  font-weight: 600;
+}
+.btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
+.btn:active {
+  transform: scale(0.97);
 }
 
 .btn.outline {

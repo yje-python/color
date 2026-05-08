@@ -33,8 +33,34 @@
 
     <!-- 검색창 -->
     <div class="search-box">
-      <span class="magnifying-glass">🔍</span>
-      <input class="search-input" placeholder="검색" />
+
+      <span
+        class="magnifying-glass"
+        @click="searchHex"
+      >
+        🔍
+      </span>
+
+      <input
+        v-model="searchValue"
+
+        class="search-input"
+
+        placeholder="ffffff"
+
+        maxlength="6"
+
+        @keydown="handleKeydown"
+
+        @input="sanitizeHex"
+
+        @compositionstart.prevent
+
+        @paste.prevent
+
+        @keyup.enter="searchHex"
+      />
+
     </div>
 
     <!-- 버튼 -->
@@ -136,15 +162,160 @@ const getOutlineStyle = (img: string, i: number) => ({
 })
 
 /* 랜덤 색 */
-const randomHex = () =>
-  '#' +
-  Math.floor(Math.random() * 16777215)
-    .toString(16)
-    .padStart(6, '0')
+/* ===== HSV → HEX ===== */
+const hsvToHex = (
+  h: number,
+  s: number,
+  v: number,
+) => {
 
-const randomizeAll = () => {
-  fillColor.value = randomHex()
-  outlineColor.value = randomHex()
+  s /= 100
+  v /= 100
+
+  const c = v * s
+  const x =
+    c * (
+      1 -
+      Math.abs((h / 60) % 2 - 1)
+    )
+
+  const m = v - c
+
+  let r = 0
+  let g = 0
+  let b = 0
+
+  if (h < 60) {
+    r = c
+    g = x
+  }
+
+  else if (h < 120) {
+    r = x
+    g = c
+  }
+
+  else if (h < 180) {
+    g = c
+    b = x
+  }
+
+  else if (h < 240) {
+    g = x
+    b = c
+  }
+
+  else if (h < 300) {
+    r = x
+    b = c
+  }
+
+  else {
+    r = c
+    b = x
+  }
+
+  const toHex = (n: number) =>
+    Math.round((n + m) * 255)
+      .toString(16)
+      .padStart(2, '0')
+
+  return (
+    '#' +
+    toHex(r) +
+    toHex(g) +
+    toHex(b)
+  )
+}
+
+/* ===== 조화로운 팔레트 ===== */
+const randomizeAll = async () => {
+
+  const baseHex =
+    Math.floor(Math.random() * 16777215)
+      .toString(16)
+      .padStart(6, '0')
+
+  try {
+
+    const res = await fetch(
+      `https://www.thecolorapi.com/scheme?hex=${baseHex}&mode=analogic&count=10`
+    )
+
+    const data = await res.json()
+
+    const sorted =
+      [...data.colors].sort(
+        (a, b) =>
+          b.hsv.value[2] -
+          a.hsv.value[2]
+      )
+
+    /* 가장 밝은 */
+    fillColor.value =
+      sorted[0].hex.value
+
+    /* 가장 어두운 */
+    outlineColor.value =
+      sorted[sorted.length - 1]
+        .hex.value
+  }
+
+  catch (err) {
+
+    console.error(err)
+  }
+}
+
+/* ===== 검색 ===== */
+
+const searchValue = ref('')
+
+const handleKeydown = (
+  e: KeyboardEvent
+) => {
+
+  const allowedKeys = [
+    'Backspace',
+    'Delete',
+    'ArrowLeft',
+    'ArrowRight',
+    'Tab',
+  ]
+
+  /* 제어키 허용 */
+  if (
+    allowedKeys.includes(e.key)
+  ) {
+    return
+  }
+
+  /* HEX 문자만 허용 */
+  const isHex =
+    /^[0-9a-fA-F]$/.test(e.key)
+
+  if (!isHex) {
+    e.preventDefault()
+  }
+}
+const sanitizeHex = () => {
+
+  searchValue.value =
+    searchValue.value
+      .replace(/[^0-9a-fA-F]/g, '')
+      .slice(0, 6)
+}
+const searchHex = () => {
+
+  if (
+    searchValue.value.length !== 6
+  ) {
+    return
+  }
+
+  router.push(
+    `/color/${searchValue.value}`
+  )
 }
 </script>
 
@@ -243,6 +414,14 @@ const randomizeAll = () => {
 .magnifying-glass {
   font-size: 18px;
   color: #888;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.magnifying-glass:hover {
+  color: #222;
 }
 
 /* ===== 버튼 ===== */

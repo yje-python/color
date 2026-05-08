@@ -2,7 +2,12 @@
   <div class="color-detail-view">
 
     <!-- 배경 -->
-    <div class="hero-bg"></div>
+    <div
+      class="hero-bg"
+      :style="{
+        background: hexToRgba(currentHex, 0.75)
+      }"
+    />
 
     <!-- 컨텐츠 -->
     <div class="detail-container">
@@ -13,8 +18,13 @@
         <div class="top-row">
 
           <div class="color-card">
-            <div class="color-preview"></div>
-            <div class="color-code">#57bb94</div>
+            <div
+              class="color-preview"
+              :style="{ background: currentHex }"
+            />
+            <div class="color-code">
+              {{ currentHex }}
+            </div>
             <div class="tag-container">
               <span class="tag"
                 :style="categoryStyle"
@@ -51,18 +61,47 @@
                     <p class="chart-title">RGB</p>
                     <div class="bar red">
                       <span class="label">R</span>
-                      <div class="bar-track"><div class="bar-fill"></div></div>
-                      <span class="value">34</span>
+
+                      <div class="bar-track">
+                        <div
+                          class="bar-fill"
+                          :style="{
+                            width: `${(colorData?.rgb.r / 255) * 100}%`
+                          }"
+                        />
+                      </div>
+
+                      <span class="value">
+                        {{ colorData?.rgb.r }}
+                      </span>
                     </div>
                     <div class="bar green">
                       <span class="label">G</span>
-                      <div class="bar-track"><div class="bar-fill"></div></div>
-                      <span class="value">73</span>
+                      <div class="bar-track">
+                        <div
+                          class="bar-fill"
+                          :style="{
+                            width: `${(colorData?.rgb.g / 255) * 100}%`
+                          }"
+                        />
+                      </div>
+                      <span class="value">
+                        {{ colorData?.rgb.g }}
+                      </span>
                     </div>
                     <div class="bar blue">
                       <span class="label">B</span>
-                      <div class="bar-track"><div class="bar-fill"></div></div>
-                      <span class="value">58</span>
+                      <div class="bar-track">
+                        <div
+                          class="bar-fill"
+                          :style="{
+                            width: `${(colorData?.rgb.b / 255) * 100}%`
+                          }"
+                        />
+                      </div>
+                      <span class="value">
+                        {{ colorData?.rgb.b }}
+                      </span>
                     </div>
                   </div>
 
@@ -70,29 +109,71 @@
                     <p class="chart-title">CMYK</p>
                     <div class="bar cyan">
                       <span class="label">C</span>
-                      <div class="bar-track"><div class="bar-fill"></div></div>
-                      <span class="value">53</span>
+                      <div class="bar-track">
+                        <div
+                          class="bar-fill"
+                          :style="{
+                            width: `${(colorData?.cmyk.c / 100) * 100}%`
+                          }"
+                        />
+                      </div>
+                      <span class="value">
+                        {{ colorData?.cmyk.c }}
+                      </span>
                     </div>
                     <div class="bar magenta">
                       <span class="label">M</span>
-                      <div class="bar-track"><div class="bar-fill"></div></div>
-                      <span class="value">0</span>
+                      <div class="bar-track">
+                        <div
+                          class="bar-fill"
+                          :style="{
+                            width: `${(colorData?.cmyk.m / 100) * 100}%`
+                          }"
+                        />
+                      </div>
+                      <span class="value">
+                        {{ colorData?.cmyk.m }}
+                      </span>
                     </div>
                     <div class="bar yellow">
                       <span class="label">Y</span>
-                      <div class="bar-track"><div class="bar-fill"></div></div>
-                      <span class="value">21</span>
+                      <div class="bar-track">
+                        <div
+                          class="bar-fill"
+                          :style="{
+                            width: `${(colorData?.cmyk.y / 100) * 100}%`
+                          }"
+                        />
+                      </div>
+                      <span class="value">
+                        {{ colorData?.cmyk.y }}
+                      </span>
                     </div>
                     <div class="bar black">
                       <span class="label">K</span>
-                      <div class="bar-track"><div class="bar-fill"></div></div>
-                      <span class="value">27</span>
+                      <div class="bar-track">
+                        <div
+                          class="bar-fill"
+                          :style="{
+                            width: `${(colorData?.cmyk.k / 100) * 100}%`
+                          }"
+                        />
+                      </div>
+                      <span class="value">
+                        {{ colorData?.cmyk.k }}
+                      </span>
                     </div>
                   </div>
                 </div>
 
             <!-- 🔥 이동된 위치 -->
-            <div class="title-band">Lime Green</div>
+            <div
+              class="title-band"
+
+              :style="titleBandStyle"
+            >
+              {{ colorData?.name.value }}
+            </div>
 
           </div>
 
@@ -109,7 +190,7 @@
           >
             <div class="row">
               <span class="label">{{ item.label }}</span>
-              <span class="value">{{ item.value }}</span>
+              <span class="info">{{ item.value }}</span>
             </div>
 
             <!-- overlay -->
@@ -127,9 +208,20 @@
         <div class="similar-section">
           <p class="sub-title">유사한 색</p>
           <div class="similar-list">
-            <div class="similar-chip" v-for="i in 5" :key="i">
-              <div class="overlay">#57bb7b</div>
+
+            <div
+              v-for="color in similarColors"
+              :key="color"
+              class="similar-chip"
+              :style="{ background: color }"
+              @click="router.push(`/color/${color.replace('#', '')}`)"
+            >
+              <div class="overlay">
+                {{ color }}
+              </div>
+
             </div>
+
           </div>
         </div>
 
@@ -140,36 +232,36 @@
         <div class="palette-buttons">
 
           <button
-            :class="{ active: selectedPalette === 'mono' }"
-            @click="setPalette('mono')"
+            :class="{ active: selectedPalette === 'monochrome' }"
+            @click="setPalette('monochrome')"
           >
             단색 계열
           </button>
 
           <button
-            :class="{ active: selectedPalette === 'analogous' }"
-            @click="setPalette('analogous')"
+            :class="{ active: selectedPalette === 'analogic' }"
+            @click="setPalette('analogic')"
           >
             유사한 색
           </button>
 
           <button
-            :class="{ active: selectedPalette === 'complementary' }"
-            @click="setPalette('complementary')"
+            :class="{ active: selectedPalette === 'complement' }"
+            @click="setPalette('complement')"
           >
             보색
           </button>
 
           <button
-            :class="{ active: selectedPalette === 'triadic' }"
-            @click="setPalette('triadic')"
+            :class="{ active: selectedPalette === 'triad' }"
+            @click="setPalette('triad')"
           >
             삼각
           </button>
 
           <button
-            :class="{ active: selectedPalette === 'tetradic' }"
-            @click="setPalette('tetradic')"
+            :class="{ active: selectedPalette === 'quad' }"
+            @click="setPalette('quad')"
           >
             사각
           </button>
@@ -177,11 +269,12 @@
         </div>
 
           <div class="palette-row">
-            <div style="background:#398d6c"></div>
-            <div style="background:#409f7a"></div>
-            <div style="background:#48b188"></div>
-            <div style="background:#57bb94"></div>
-            <div style="background:#69c2a0"></div>
+            <div
+              v-for="color in paletteColors"
+              :key="color"
+              :style="{ background: color }"
+              @click="goPaletteDetail"
+            />
           </div>
         </div>
 
@@ -192,8 +285,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import axios from 'axios'
+
+const route = useRoute()
+const router = useRouter()
 
 const isFavorite = ref(false)
 
@@ -201,48 +298,89 @@ const toggleFavorite = () => {
   isFavorite.value = !isFavorite.value
 }
 
-const selectedPalette = ref('mono')
+const selectedPalette = ref('monochrome')
 
-const setPalette = (type: string) => {
+const setPalette = async (type: string) => {
   selectedPalette.value = type
+  await fetchPalette()
 }
 
-const hex = '#57BB94'
+const colorData = ref<any>(null)
 
-const rgb = computed(() => {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return { r, g, b }
+const paletteColors = ref<string[]>([])
+
+const copiedKey = ref<string | null>(null)
+
+const currentHex = computed(() => {
+  return `#${route.params.hex}`
 })
 
+const fetchColor = async () => {
+  try {
+
+    const res = await axios.get(
+      `https://www.thecolorapi.com/id?hex=${route.params.hex}`
+    )
+
+    colorData.value = res.data
+
+    await fetchPalette()
+
+    await fetchSimilarColors()
+
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const similarColors = ref<string[]>([])
+
+const fetchSimilarColors = async () => {
+
+  const res = await axios.get(
+    `https://www.thecolorapi.com/scheme?hex=${route.params.hex}&mode=monochrome&count=6`
+  )
+
+  similarColors.value =
+    res.data.colors.map(
+      (c: any) => c.hex.value
+    )
+}
+
+const fetchPalette = async () => {
+  try {
+    const res = await axios.get(
+      `https://www.thecolorapi.com/scheme?hex=${route.params.hex}&mode=${selectedPalette.value}&count=5`
+    )
+
+    paletteColors.value = res.data.colors.map(
+      (c: any) => c.hex.value
+    )
+
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+onMounted(fetchColor)
+
+watch(
+  () => route.params.hex,
+  fetchColor
+)
+
 const brightness = computed(() => {
-  const { r, g, b } = rgb.value
-  const luminance = (0.299*r + 0.587*g + 0.114*b) / 255
-  return luminance > 0.5 ? 'Light' : 'Dark'
+  if (!colorData.value) return ''
+
+  return colorData.value.contrast.value === '#000000'
+    ? 'Light'
+    : 'Dark'
 })
 
 const colorCategory = computed(() => {
-  const { r, g, b } = rgb.value
+  if (!colorData.value) return ''
 
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  const delta = max - min
-
-  if (delta < 10) {
-    if (max < 50) return 'Black'
-    if (max > 200) return 'White'
-    return 'Gray'
-  }
-
-  let hue = 0
-
-  if (max === r) hue = ((g - b) / delta) % 6
-  else if (max === g) hue = (b - r) / delta + 2
-  else hue = (r - g) / delta + 4
-
-  hue = Math.round(hue * 60)
-  if (hue < 0) hue += 360
+  const hue = colorData.value.hsl.h
 
   if (hue < 18) return 'Red'
   if (hue < 36) return 'Orange'
@@ -254,29 +392,26 @@ const colorCategory = computed(() => {
   if (hue < 270) return 'Navy'
   if (hue < 300) return 'Purple'
   if (hue < 330) return 'Pink'
+
   return 'Red'
 })
 
-/* ===== 태그 색상 자동 ===== */
-
-/* HEX → RGBA */
 const hexToRgba = (hex: string, alpha: number) => {
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
+
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
-/* 카테고리 태그 */
 const categoryStyle = computed(() => {
   return {
-    background: hexToRgba(hex, 0.15),
-    color: hex,
-    border: `1px solid ${hexToRgba(hex, 0.4)}`
+    background: hexToRgba(currentHex.value, 0.15),
+    color: currentHex.value,
+    border: `1px solid ${hexToRgba(currentHex.value, 0.4)}`
   }
 })
 
-/* 밝기 태그 */
 const brightnessStyle = computed(() => {
   return brightness.value === 'Light'
     ? {
@@ -289,16 +424,77 @@ const brightnessStyle = computed(() => {
       }
 })
 
-const copiedKey = ref<string | null>(null)
+/* ===== title band ===== */
 
-const infoList = [
-  { label: 'HEX', value: '#57bb94' },
-  { label: 'HSV', value: '156.6°, 53.5, 73.3' },
-  { label: 'RGB', value: '87, 187, 148' },
-  { label: 'HSL', value: '156.6°, 42.4, 53.7' },
-  { label: 'CMYK', value: '53, 0, 21, 27' },
-  { label: 'XYZ', value: '27.044, 39.703, 34.254' }
-]
+const titleBandStyle = computed(() => {
+
+  if (!colorData.value) {
+    return {}
+  }
+
+  const h =
+    colorData.value.hsl.h
+
+  const s =
+    colorData.value.hsl.s
+
+  const l =
+    colorData.value.hsl.l
+
+  /* 밝은 색 여부 */
+  const isLight = l >= 60
+
+  /* 같은 hue 유지 */
+  const bg = isLight
+
+    /* 밝은 색 -> 극도로 어두운 배경 */
+    ? `hsl(${h}, ${Math.max(s - 10, 20)}%, 12%)`
+
+    /* 어두운 색 -> 극도로 밝은 배경 */
+    : `hsl(${h}, ${Math.max(s - 20, 15)}%, 92%)`
+
+  return {
+    background: bg,
+
+    color: currentHex.value,
+
+    border: `1px solid ${hexToRgba(currentHex.value, 0.2)}`,
+
+    boxShadow:
+      `0 6px 16px ${hexToRgba(currentHex.value, 0.18)}`
+  }
+})
+
+const infoList = computed(() => {
+  if (!colorData.value) return []
+
+  return [
+    {
+      label: 'HEX',
+      value: colorData.value.hex.value
+    },
+    {
+      label: 'RGB',
+      value: `${colorData.value.rgb.r}, ${colorData.value.rgb.g}, ${colorData.value.rgb.b}`
+    },
+    {
+      label: 'HSL',
+      value: `${colorData.value.hsl.h}°, ${colorData.value.hsl.s}%, ${colorData.value.hsl.l}%`
+    },
+    {
+      label: 'HSV',
+      value: `${colorData.value.hsv.h}°, ${colorData.value.hsv.s}%, ${colorData.value.hsv.v}%`
+    },
+    {
+      label: 'CMYK',
+      value: `${colorData.value.cmyk.c}, ${colorData.value.cmyk.m}, ${colorData.value.cmyk.y}, ${colorData.value.cmyk.k}`
+    },
+    {
+      label: 'XYZ',
+      value: `${colorData.value.XYZ.X}, ${colorData.value.XYZ.Y}, ${colorData.value.XYZ.Z}`
+    }
+  ]
+})
 
 const handleCopy = async (text: string, key: string) => {
   await navigator.clipboard.writeText(text)
@@ -308,6 +504,16 @@ const handleCopy = async (text: string, key: string) => {
   setTimeout(() => {
     copiedKey.value = null
   }, 1000)
+}
+
+const goPaletteDetail = () => {
+
+  router.push({
+    path: '/palette',
+    query: {
+      colors: paletteColors.value.join(',')
+    }
+  })
 }
 </script>
 
@@ -446,7 +652,8 @@ const handleCopy = async (text: string, key: string) => {
 }
 
 .chart-card {
-  width: 80%;
+  flex: 1;
+  max-width: 520px;
   padding: 12px;
   background: #fff;
   border-radius: 12px;
@@ -454,49 +661,101 @@ const handleCopy = async (text: string, key: string) => {
 }
 
 .bar {
-  display: flex;
+  display: grid;
+
+  grid-template-columns:
+    40px
+    minmax(280px, 420px)
+    42px;
+
   align-items: center;
-  gap: 10px;           /* 요소 간격 */
-  margin: 10px 0;
+
+  gap: 8px;
+
+  margin: 18px 0;
 }
 
 .label {
+  width: 40px;
+
   font-weight: bold;
+
   color: #000;
-  flex-shrink: 0; 
+
+  font-size: 18px;
+
+  text-align: center;
 }
 
 .value {
-  font-weight: 600;
-  color: #fff;
+  width: 42px;
+
   text-align: right;
-  white-space: nowrap;      /* 줄바꿈 금지 */
-  overflow: hidden;
-  text-overflow: ellipsis;  /* 넘치면 ... */
-  max-width: 60%;           /* 영역 제한 */
+
+  font-weight: 700;
+
+  font-size: 18px;
+
+  color: #5f5f5f !important;
+
+  font-variant-numeric: tabular-nums;
 }
 
 .bar-track {
-  flex: 1;
-  height: 12px;
-  background: #eee;
-  border-radius: 6px;
+  width: 100%;
+
+  height: 22px;
+
+  background: #d9d9d9;
+
+  border-radius: 999px;
+
   overflow: hidden;
+
+  position: relative;
 }
 
 .bar-fill {
+  position: absolute;
+
+  top: 0;
+  left: 0;
+
   height: 100%;
+
+  border-radius: 999px;
+
+  transition: width 0.35s ease;
 }
 
 /* 색상 */
-.red .bar-fill { background: red; width: 30%; }
-.green .bar-fill { background: #7CFF3A; width: 70%; }
-.blue .bar-fill { background: blue; width: 50%; }
+.red .bar-fill {
+  background: red;
+}
 
-.cyan .bar-fill { background: cyan; width: 60%; }
-.magenta .bar-fill { background: magenta; width: 5%; }
-.yellow .bar-fill { background: yellow; width: 20%; }
-.black .bar-fill { background: black; width: 30%; }
+.green .bar-fill {
+  background: #7CFF3A;
+}
+
+.blue .bar-fill {
+  background: blue;
+}
+
+.cyan .bar-fill {
+  background: cyan;
+}
+
+.magenta .bar-fill {
+  background: magenta;
+}
+
+.yellow .bar-fill {
+  background: yellow;
+}
+
+.black .bar-fill {
+  background: black;
+}
 
 /* 타이틀 */
 .title-band {
@@ -532,7 +791,7 @@ const handleCopy = async (text: string, key: string) => {
   align-items: center;
 }
 
-.value {
+.info {
   font-weight: 600;
   color: #5f5f5f !important;
   margin-left: 16px;
@@ -571,16 +830,17 @@ const handleCopy = async (text: string, key: string) => {
 /* 유사 색 */
 .similar-list {
   display:flex;
-  gap:20px;
+  gap:28px;
   justify-content: center;
 }
 
 .similar-chip {
-  width:80px;
-  height:80px;
+  width:120px;
+  height:120px;
   border-radius:50%;
-  background:#57bb7b;
   position:relative;
+  cursor: pointer;
+  transition: 0.2s;
 }
 
 .overlay {
@@ -593,6 +853,11 @@ const handleCopy = async (text: string, key: string) => {
   border-radius:50%;
   color:#fff;
   opacity:0;
+  font-weight: bold;
+}
+
+.similar-chip:hover {
+  transform: scale(1.06);
 }
 
 .similar-chip:hover .overlay {
@@ -620,12 +885,30 @@ const handleCopy = async (text: string, key: string) => {
 }
 
 .palette-row {
-  display:flex;
+  display: flex;
   justify-content: center;
+
+  width: 100%;
+  max-width: 900px;
+
+  margin: 0 auto;
+
+  overflow: hidden;
+
+  border-radius: 18px;
 }
 
 .palette-row div {
-  width:60px;
-  height:80px;
+  flex: 1;
+
+  height: 140px;
+
+  min-width: 0;
+
+  transition: 0.2s;
+}
+
+.palette-row div:hover {
+  transform: scaleY(1.03);
 }
 </style>

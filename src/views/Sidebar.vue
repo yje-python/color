@@ -64,7 +64,6 @@
               :class="{ active: colorStore.selectedCategory === style }"
               @click="selectCategory(style)"
             >
-              <span class="style-dot" />
 
               <span class="color-label">
                 {{ style }}
@@ -100,7 +99,6 @@
               :class="{ active: colorStore.selectedCategory === season }"
               @click="selectCategory(season)"
             >
-              <span class="style-dot" />
 
               <span class="color-label">
                 {{ season }}
@@ -158,7 +156,9 @@ const styles = [
   'warm',
   'cool',
 
-  'metallic',
+  'gold',
+  'silver',
+  'bronze',
 ]
 
 /* ===== Season ===== */
@@ -292,18 +292,6 @@ const toggleSeasonSection = () => {
   flex-shrink: 0;
 
   border: 1px solid rgba(0,0,0,0.1);
-}
-
-/* ===== 스타일 점 ===== */
-.style-dot {
-  width: 12px;
-  height: 12px;
-
-  border-radius: 50%;
-
-  background: #777;
-
-  flex-shrink: 0;
 }
 
 /* ===== 텍스트 ===== */

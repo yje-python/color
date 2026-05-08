@@ -14,8 +14,9 @@
           {{ selectedCategory }}
         </div>
 
-        <!-- 밝기 필터 -->
+        <!-- ===== 필터 버튼 ===== -->
         <div class="filter-buttons">
+
           <button
             :class="{ active: brightness === 'all' }"
             @click="setBrightness('all')"
@@ -36,6 +37,21 @@
           >
             Dark
           </button>
+
+          <button
+            :class="{ active: brightness === 'vivid' }"
+            @click="setBrightness('vivid')"
+          >
+            Vivid
+          </button>
+
+          <button
+            :class="{ active: brightness === 'muted' }"
+            @click="setBrightness('muted')"
+          >
+            Muted
+          </button>
+
         </div>
 
       </div>
@@ -43,7 +59,7 @@
       <!-- 색상 카드 -->
       <div class="color-grid">
         <div
-          v-for="color in filteredColors"
+          v-for="color in pagedColors"
           :key="color.code"
           class="color-card"
         >
@@ -55,13 +71,63 @@
         </div>
       </div>
 
+      <div class="pagination">
+
+        <!-- 첫 페이지 -->
+        <button
+          @click="goPage(1)"
+          :disabled="currentPage === 1"
+        >
+          &lt;&lt;
+        </button>
+
+        <!-- 이전 -->
+        <button
+          @click="goPage(currentPage - 1)"
+          :disabled="currentPage === 1"
+        >
+          &lt;
+        </button>
+
+        <!-- 페이지 번호 -->
+        <button
+          v-for="page in visiblePages"
+          :key="page"
+
+          :class="{
+            active: currentPage === page
+          }"
+
+          @click="goPage(page)"
+        >
+          {{ page }}
+        </button>
+
+        <!-- 다음 -->
+        <button
+          @click="goPage(currentPage + 1)"
+          :disabled="currentPage === totalPages"
+        >
+          &gt;
+        </button>
+
+        <!-- 마지막 -->
+        <button
+          @click="goPage(totalPages)"
+          :disabled="currentPage === totalPages"
+        >
+          &gt;&gt;
+        </button>
+
+      </div>
+
     </main>
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import Sidebar from '@/views/Sidebar.vue'
 import { useColorStore } from '@/stores/color'
 
@@ -71,7 +137,19 @@ import { STYLE_RULES } from '@/constants/styleRules'
 
 const colorStore = useColorStore()
 
-const brightness = ref<'all' | 'light' | 'dark'>('all')
+/* ===== 필터 ===== */
+const brightness = ref<
+  'all' |
+  'light' |
+  'dark' |
+  'vivid' |
+  'muted'
+>('all')
+
+/* ===== 페이지네이션 ===== */
+const currentPage = ref(1)
+
+const ITEMS_PER_PAGE = 20
 
 /* ===== 전체 색상 자동 생성 ===== */
 const allColors = computed(() => {
@@ -81,18 +159,31 @@ const allColors = computed(() => {
     category: string
     tone: string
     styles: string[]
+    saturationType: string
   }[] = []
 
-  for (let r = 0; r <= 255; r += 16) {
+  const values = []
 
-    for (let g = 0; g <= 255; g += 16) {
+  for (let i = 0; i <= 255; i += 4) {
+    values.push(i)
+  }
 
-      for (let b = 0; b <= 255; b += 16) {
+  if (values[values.length - 1] !== 255) {
+    values.push(255)
+  }
+
+  for (const r of values) {
+
+    for (const g of values) {
+
+      for (const b of values) {
 
         const hex =
           `#${r.toString(16).padStart(2, '0')}` +
           `${g.toString(16).padStart(2, '0')}` +
           `${b.toString(16).padStart(2, '0')}`
+
+        const hsv = hexToHSV(hex)
 
         colors.push({
           code: hex,
@@ -102,6 +193,11 @@ const allColors = computed(() => {
           tone: getTone(hex),
 
           styles: getStyles(hex),
+
+          saturationType:
+            hsv.s >= 50
+              ? 'vivid'
+              : 'muted',
         })
       }
     }
@@ -129,9 +225,11 @@ const hexToHSV = (hex: string) => {
     if (max === r) {
       h = ((g - b) / delta) % 6
     }
+
     else if (max === g) {
       h = (b - r) / delta + 2
     }
+
     else {
       h = (r - g) / delta + 4
     }
@@ -143,40 +241,54 @@ const hexToHSV = (hex: string) => {
     }
   }
 
-  const s = max === 0
-    ? 0
-    : (delta / max) * 100
+  const s =
+    max === 0
+      ? 0
+      : (delta / max) * 100
 
   const v = max * 100
 
-  return {
-    h,
-    s,
-    v,
-  }
+  return { h, s, v }
 }
 
-/* ===== 무채색 분류 ===== */
+/* ===== 무채색 ===== */
+/* ===== 무채색 ===== */
 const getAchromaticCategory = (
+  h: number,
   s: number,
   v: number,
 ) => {
 
+  /* ===== black ===== */
   if (
-    v <= ACHROMATIC_RULES.black.maxV
+    v <= ACHROMATIC_RULES.black.maxV!
   ) {
     return 'black'
   }
 
+  /* ===== white ===== */
   if (
-    v >= ACHROMATIC_RULES.white.minV &&
-    s <= ACHROMATIC_RULES.white.maxS
+    v >= ACHROMATIC_RULES.white.minV! &&
+    s <= ACHROMATIC_RULES.white.maxS!
   ) {
     return 'white'
   }
 
+  /* ===== gray ===== */
+  const gray =
+    ACHROMATIC_RULES.gray
+
+  const grayHueMatch =
+    gray.hueRanges!.some(
+      ([min, max]) =>
+        h >= min && h < max
+    )
+
   if (
-    s <= ACHROMATIC_RULES.gray.maxS
+    v >= gray.minV! &&
+    v <= gray.maxV! &&
+    s <= gray.maxS! &&
+    !grayHueMatch
   ) {
     return 'gray'
   }
@@ -184,7 +296,7 @@ const getAchromaticCategory = (
   return null
 }
 
-/* ===== 유채색 분류 ===== */
+/* ===== 유채색 ===== */
 const getChromaticCategory = (
   h: number,
 ) => {
@@ -215,15 +327,13 @@ const getChromaticCategory = (
   return 'unknown'
 }
 
-/* ===== 최종 카테고리 ===== */
+/* ===== category ===== */
 const getCategory = (hex: string) => {
 
   const { h, s, v } = hexToHSV(hex)
 
-  const achromatic = getAchromaticCategory(
-    s,
-    v,
-  )
+  const achromatic =
+    getAchromaticCategory(h, s, v)
 
   if (achromatic) {
     return achromatic
@@ -232,7 +342,7 @@ const getCategory = (hex: string) => {
   return getChromaticCategory(h)
 }
 
-/* ===== Tone ===== */
+/* ===== tone ===== */
 const getTone = (hex: string) => {
 
   const { v } = hexToHSV(hex)
@@ -248,142 +358,233 @@ const getTone = (hex: string) => {
   return 'dark'
 }
 
-/* ===== Style ===== */
+/* ===== styles ===== */
+/* ===== styles ===== */
 const getStyles = (hex: string) => {
 
   const { h, s, v } = hexToHSV(hex)
 
   const styles: string[] = []
 
-  /* vivid */
+  const isGray =
+    s <= ACHROMATIC_RULES.gray.maxS
+
+  const isWarm =
+    h < 70 || h >= 300
+
+  const isCool =
+    h >= 70 && h < 300
+
+  /* ===== vivid ===== */
   if (
-    s >= STYLE_RULES.vivid.minS &&
-    v >= STYLE_RULES.vivid.minV
+    s >= STYLE_RULES.vivid.minS! &&
+    v >= STYLE_RULES.vivid.minV!
   ) {
     styles.push('vivid')
   }
 
-  /* muted */
+  /* ===== muted ===== */
   if (
-    s >= STYLE_RULES.muted.minS &&
-    s < STYLE_RULES.muted.maxS
+    s >= STYLE_RULES.muted.minS! &&
+    s < STYLE_RULES.muted.maxS!
   ) {
     styles.push('muted')
   }
 
-  /* pastel */
+  /* ===== pastel ===== */
   if (
-    v >= STYLE_RULES.pastel.minV &&
-    s < STYLE_RULES.pastel.maxS
+    v >= STYLE_RULES.pastel.minV! &&
+    s < STYLE_RULES.pastel.maxS!
   ) {
     styles.push('pastel')
   }
 
-  /* neon */
+  /* ===== neon ===== */
   if (
-    v >= STYLE_RULES.neon.minV &&
-    s >= STYLE_RULES.neon.minS
+    v >= STYLE_RULES.neon.minV! &&
+    s >= STYLE_RULES.neon.minS!
   ) {
     styles.push('neon')
   }
 
-  /* vintage */
+  /* ===== vintage ===== */
   if (
-    s < STYLE_RULES.vintage.maxS &&
-    v >= STYLE_RULES.vintage.minV &&
-    v < STYLE_RULES.vintage.maxV
+    s < STYLE_RULES.vintage.maxS! &&
+    v >= STYLE_RULES.vintage.minV! &&
+    v < STYLE_RULES.vintage.maxV!
   ) {
     styles.push('vintage')
   }
 
-  /* earth */
+  /* ===== earth ===== */
   if (
-    h >= STYLE_RULES.earth.minH &&
-    h < STYLE_RULES.earth.maxH &&
-    s >= STYLE_RULES.earth.minS &&
-    s < STYLE_RULES.earth.maxS &&
-    v >= STYLE_RULES.earth.minV &&
-    v < STYLE_RULES.earth.maxV
+    h >= STYLE_RULES.earth.minH! &&
+    h < STYLE_RULES.earth.maxH! &&
+    s >= STYLE_RULES.earth.minS! &&
+    s < STYLE_RULES.earth.maxS! &&
+    v >= STYLE_RULES.earth.minV! &&
+    v < STYLE_RULES.earth.maxV!
   ) {
     styles.push('earth')
   }
 
-  /* warm */
-  if (
-    h < 70 ||
-    h >= 300
-  ) {
+  /* ===== warm ===== */
+  if (isWarm) {
     styles.push('warm')
   }
 
-  /* cool */
-  else {
+  /* ===== cool ===== */
+  if (isCool) {
     styles.push('cool')
   }
 
-  /* spring */
+  /* ===== spring ===== */
+  const spring = STYLE_RULES.spring
+
   if (
-    styles.includes('warm') &&
-    v >= STYLE_RULES.spring.minV &&
-    s >= STYLE_RULES.spring.minS
+    spring.hueRanges!.some(
+      ([min, max]) => h >= min && h < max
+    ) &&
+    v >= spring.minV! &&
+    s >= spring.minS! &&
+    (!spring.preferWarm || isWarm)
   ) {
     styles.push('spring')
   }
 
-  /* summer */
+  /* ===== summer ===== */
+  const summer = STYLE_RULES.summer
+
+  const summerHueMatch =
+    summer.hueRanges!.some(
+      ([min, max]) => h >= min && h < max
+    )
+
   if (
-    styles.includes('cool') &&
-    v >= STYLE_RULES.summer.minV &&
-    s < STYLE_RULES.summer.maxS
+    (
+      summerHueMatch ||
+      (summer.allowGrays && isGray)
+    ) &&
+    v >= summer.minV! &&
+    s < summer.maxS!
   ) {
     styles.push('summer')
   }
 
-  /* fall */
+  /* ===== fall ===== */
+  const fall = STYLE_RULES.fall
+
   if (
-    styles.includes('warm') &&
-    v < STYLE_RULES.fall.maxV &&
-    s < STYLE_RULES.fall.maxS
+    fall.hueRanges!.some(
+      ([min, max]) => h >= min && h < max
+    ) &&
+    v >= fall.minV! &&
+    v < fall.maxV! &&
+    s >= fall.minS!
   ) {
     styles.push('fall')
   }
 
-  /* winter */
+  /* ===== winter ===== */
+  const winter = STYLE_RULES.winter
+
+  const winterHueMatch =
+    winter.hueRanges!.some(
+      ([min, max]) => h >= min && h < max
+    )
+
   if (
-    styles.includes('cool') &&
-    s >= STYLE_RULES.winter.minS &&
-    v >= STYLE_RULES.winter.minV
+    winterHueMatch &&
+    winter.customFilter!?.(h, s, v)
   ) {
     styles.push('winter')
+  }
+
+  /* ===== metallic ===== */
+
+  /* gold */
+  const gold =
+    STYLE_RULES.metallic.gold
+
+  if (
+    h >= gold.minH &&
+    h < gold.maxH &&
+    s >= gold.minS &&
+    s < gold.maxS &&
+    v >= gold.minV &&
+    v < gold.maxV
+  ) {
+    styles.push('gold')
+  }
+
+
+/* silver */
+const silver =
+  STYLE_RULES.metallic.silver
+
+const silverHueMatch =
+  silver.hueRanges!.some(
+    ([min, max]: [number, number]) =>
+      h >= min && h < max
+  )
+
+if (
+
+  /* 매우 낮은 채도 */
+  s <= silver.maxS &&
+
+  /* 실버 명도 범위 */
+  v >= silver.minV &&
+  v <= silver.maxV &&
+
+  /* 완전 무채색 허용 */
+  (
+    s === 0 ||
+
+    /* 아주 미세한 색감은
+       blue/purple 계열만 허용 */
+    silverHueMatch
+  )
+
+) {
+  styles.push('silver')
+}
+
+  /* bronze */
+  const bronze =
+    STYLE_RULES.metallic.bronze
+
+  if (
+    h >= bronze.minH &&
+    h < bronze.maxH &&
+    s >= bronze.minS &&
+    s < bronze.maxS &&
+    v >= bronze.minV &&
+    v < bronze.maxV
+  ) {
+    styles.push('bronze')
   }
 
   return styles
 }
 
-/* ===== 선택된 카테고리 ===== */
+/* ===== 선택된 category ===== */
 const selectedCategory = computed(
   () => colorStore.selectedCategory
 )
 
-/* ===== 최종 필터 ===== */
+/* ===== 필터 ===== */
 const filteredColors = computed(() => {
 
   return allColors.value.filter(color => {
 
-    const category =
-      getCategory(color.code)
-
-    const styles =
-      getStyles(color.code)
-
-    const selected =
-      selectedCategory.value
-
     const categoryMatch =
-      category === selected
+      color.category === selectedCategory.value
 
     const styleMatch =
-      styles.includes(selected)
+      color.styles.includes(
+        selectedCategory.value
+      )
 
     if (
       !categoryMatch &&
@@ -398,139 +599,279 @@ const filteredColors = computed(() => {
       return true
     }
 
+    if (
+      brightness.value === 'light' ||
+      brightness.value === 'dark'
+    ) {
+      return (
+        color.tone === brightness.value
+      )
+    }
+
     return (
-      getTone(color.code)
+      color.saturationType
       === brightness.value
     )
   })
 })
 
-/* ===== 이벤트 ===== */
+/* ===== 총 페이지 ===== */
+const totalPages = computed(() => {
+
+  return Math.ceil(
+    filteredColors.value.length /
+    ITEMS_PER_PAGE
+  )
+})
+
+/* ===== 현재 페이지 데이터 ===== */
+const pagedColors = computed(() => {
+
+  const start =
+    (currentPage.value - 1)
+    * ITEMS_PER_PAGE
+
+  const end =
+    start + ITEMS_PER_PAGE
+
+  return filteredColors.value.slice(
+    start,
+    end,
+  )
+})
+
+/* ===== category 변경 시 1페이지 ===== */
+watch(
+  () => [
+    selectedCategory.value,
+    brightness.value,
+  ],
+
+  () => {
+    currentPage.value = 1
+  }
+)
+
+/* ===== 페이지 이동 ===== */
+const goPage = (page: number) => {
+
+  if (
+    page < 1 ||
+    page > totalPages.value
+  ) {
+    return
+  }
+
+  currentPage.value = page
+
+  window.scrollTo(0, 0)
+}
+
+/* ===== 현재 보이는 페이지 번호 ===== */
+const visiblePages = computed(() => {
+
+  const groupSize = 5
+
+  const start =
+    Math.floor(
+      (currentPage.value - 1)
+      / groupSize
+    ) * groupSize + 1
+
+  const end = Math.min(
+    start + groupSize - 1,
+    totalPages.value,
+  )
+
+  return Array.from(
+    { length: end - start + 1 },
+
+    (_, i) => start + i
+  )
+})
+
+/* ===== 필터 ===== */
 const setBrightness = (
-  type: 'all' | 'light' | 'dark'
+  type:
+    | 'all'
+    | 'light'
+    | 'dark'
+    | 'vivid'
+    | 'muted'
 ) => {
+
   brightness.value = type
 }
 </script>
 
 <style scoped>
-/* ===== 전체 레이아웃 ===== */
+
+/* ===== 전체 ===== */
 .layout {
   display: flex;
 }
 
-/* ===== 메인 영역 ===== */
+/* ===== 메인 ===== */
 .category-page {
-  margin-left: 260px;     /* 🔥 sidebar width */
-  margin-top: 64px;       /* 🔥 navbar 고려 */
+  margin-left: 260px;
 
   width: 100%;
-  min-height: calc(100vh - 64px);
+  min-height: 100vh;
 
-  padding: 40px;
+  padding: 180px 60px 60px;
+
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-/* ===== 헤더 ===== */
+/* ===== 상단 고정 ===== */
 .category-header {
-  margin-bottom: 40px;
+  position: fixed;
+
+  top: 50px;
+  left: 260px;
+  right: 0;
+
+  z-index: 20;
+
+  height: 90px;
+
+  background: white;
 
   display: flex;
   align-items: center;
   gap: 20px;
+
+  padding: 0 40px;
+
+  border-bottom: 1px solid #eee;
 }
 
-/* 색상 배지 */
+/* ===== badge ===== */
 .category-badge {
   padding: 12px 28px;
+
   border: 2px solid #ddd;
   border-radius: 24px;
 
   font-size: 20px;
   font-weight: bold;
+
+  text-transform: capitalize;
 }
 
-/* 필터 버튼 */
+/* ===== 버튼 ===== */
 .filter-buttons {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .filter-buttons button {
   padding: 8px 16px;
+
   border-radius: 20px;
   border: none;
+
   background: #e5e5e5;
+
   cursor: pointer;
+
+  transition: 0.2s;
 }
 
 .filter-buttons button.active {
   background: #333;
-  color: #fff;
+  color: white;
 }
 
-/* ===== 카드 그리드 ===== */
+/* ===== grid ===== */
 .color-grid {
   display: grid;
-  grid-template-columns: repeat(5, 140px);
-  gap: 24px;
-  justify-content: start;
-}
-/* 태블릿 */
-@media (max-width: 1200px) {
-  .color-grid {
-    grid-template-columns: repeat(4, 140px);
-  }
+
+  grid-template-columns: repeat(5, 160px);
+
+  gap: 40px;
+
+  justify-content: center;
 }
 
-/* 모바일 */
-@media (max-width: 900px) {
-  .color-grid {
-    grid-template-columns: repeat(3, 140px);
-  }
-}
-
-@media (max-width: 600px) {
-  .color-grid {
-    grid-template-columns: repeat(2, 140px);
-  }
-}
-
-/* 카드 */
+/* ===== 카드 ===== */
 .color-card {
-  width: 140px;
-  background: #fff;
+  width: 160px;
 
-  border-radius: 12px;
+  background: white;
+
+  border-radius: 16px;
+
   overflow: hidden;
 
-  box-shadow: 4px 4px 8px rgba(0,0,0,0.2);
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.12);
 
   transition: 0.2s;
 }
 
 .color-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-6px);
 }
 
-/* 색상 영역 */
+/* ===== 미리보기 ===== */
 .color-preview {
   width: 100%;
-  height: 120px;
+  height: 140px;
 }
 
-/* HEX */
+/* ===== hex ===== */
 .color-code {
-  width: 100%;
-  padding: 10px;
+  padding: 14px;
 
   text-align: center;
-  font-weight: bold;
+
+  font-weight: 700;
 }
+
+/* ===== pagination ===== */
+.pagination {
+  margin-top: 70px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  flex-wrap: wrap;
+}
+
+.pagination button {
+
+  min-width: 42px;
+  height: 42px;
+
+  padding: 0 12px;
+
+  border: none;
+  border-radius: 12px;
+
+  background: #eee;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #d8d8d8;
+}
+
+.pagination button.active {
+  background: #222;
+  color: white;
+}
+
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 </style>

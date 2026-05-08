@@ -24,7 +24,11 @@
       </div>
 
       <!-- 🔥 버튼 -->
-      <button class="retry-btn" @click="spin">
+      <button
+        class="retry-btn"
+        @click="spin"
+        :disabled="isSpinning"
+      >
         돌리기
       </button>
 
@@ -46,6 +50,7 @@
             v-else
             class="result-chip"
             :style="{ background: resultHex }"
+            @click="goDetail"
           ></div>
         </div>
 
@@ -60,7 +65,11 @@
             Color
           </h2>
 
-          <button class="detail-btn">
+          <button
+            class="detail-btn"
+            @click="goDetail"
+            :disabled="!resultHex"
+          >
             상세 정보
           </button>
 
@@ -75,74 +84,148 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import axios from 'axios'
 
-// const hexChars = ref(['-','-','-','-','-','-'])
-const resultHex = ref('')
-const colorName = ref('')
+const router = useRouter()
 
-const HEX_LIST = '0123456789ABCDEF'.split('')
-const positions = ref(new Array(6).fill(0))
+const HEX_LIST =
+  '0123456789ABCDEF'.split('')
 
 const ITEM_HEIGHT = 106
-// const slots = ref(new Array(6).fill(null))
-const spin = () => {
+
+const positions =
+  ref(new Array(6).fill(0))
+
+const resultHex =
+  ref('')
+
+const colorName =
+  ref('')
+
+const isSpinning =
+  ref(false)
+
+/* ===== 슬롯 시작 ===== */
+const spin = async () => {
+
+  if (isSpinning.value) {
+    return
+  }
+
+  isSpinning.value = true
+
+  resultHex.value = ''
+  colorName.value = ''
+
+  const finalHex: string[] = []
+
+  const promises = []
+
   for (let i = 0; i < 6; i++) {
-    animateSlot(i)
+
+    const finalIndex =
+      Math.floor(Math.random() * 16)
+
+    finalHex.push(
+      HEX_LIST[finalIndex]
+    )
+
+    promises.push(
+      animateSlot(i, finalIndex)
+    )
+  }
+
+  /* 모든 슬롯 종료까지 대기 */
+  await Promise.all(promises)
+
+  /* 슬롯 transition 끝날 때까지 대기 */
+  await new Promise(resolve =>
+    setTimeout(resolve, 220)
+  )
+
+  const hex =
+    '#' + finalHex.join('')
+
+  resultHex.value = hex
+
+  await fetchColorName(hex)
+
+  isSpinning.value = false
+}
+
+/* ===== 슬롯 애니메이션 ===== */
+const animateSlot = (
+  index: number,
+  finalIndex: number
+) => {
+
+  return new Promise<void>((resolve) => {
+
+    let offset = 0
+
+    const totalSpin =
+      ITEM_HEIGHT * (
+        12 + finalIndex
+      )
+
+    const speed = 18
+
+    const interval = setInterval(() => {
+
+      offset += 52
+
+      positions.value[index] =
+        offset
+
+      if (offset >= totalSpin) {
+
+        clearInterval(interval)
+
+        positions.value[index] =
+          finalIndex * ITEM_HEIGHT
+
+        resolve()
+      }
+
+    }, speed)
+
+  })
+}
+
+/* ===== Color API ===== */
+const fetchColorName = async (
+  hex: string
+) => {
+
+  try {
+
+    const res = await axios.get(
+      `https://www.thecolorapi.com/id?hex=${hex.replace('#', '')}`
+    )
+
+    colorName.value =
+      res.data.name.value
+
+  } catch (err) {
+
+    console.error(err)
+
+    colorName.value = 'Color'
   }
 }
 
-const animateSlot = (index: number) => {
-  let offset = 0
-  let speed = 40
+/* ===== 상세 이동 ===== */
+const goDetail = () => {
 
-  const interval = setInterval(() => {
-    offset += speed
+  if (!resultHex.value) {
+    return
+  }
 
-    positions.value[index] = offset
-
-    // 🔥 감속
-    if (offset > ITEM_HEIGHT * 20) {
-      clearInterval(interval)
-
-      const finalIndex = Math.floor(Math.random() * 16)
-
-      positions.value[index] =
-        finalIndex * ITEM_HEIGHT
-
-      updateResult()
-    }
-
-  }, 30)
+  router.push(
+    `/color/${resultHex.value.replace('#', '')}`
+  )
 }
-
-const updateResult = () => {
-  const result = positions.value.map(pos => {
-    const idx = Math.round(pos / ITEM_HEIGHT) % 16
-    return HEX_LIST[idx]
-  })
-
-  const hex = '#' + result.join('')
-  resultHex.value = hex
-  colorName.value = getColorName(hex)
-}
-
-/* 간단 색 이름 */
-const getColorName = (hex: string) => {
-  const r = parseInt(hex.slice(1,3),16)
-  const g = parseInt(hex.slice(3,5),16)
-  const b = parseInt(hex.slice(5,7),16)
-
-  if (r > g && r > b) return 'Red'
-  if (g > r && g > b) return 'Green'
-  if (b > r && b > g) return 'Blue'
-  if (r > 200 && g > 200) return 'Yellow'
-  if (g > 200 && b > 200) return 'Cyan'
-  if (r > 200 && b > 200) return 'Magenta'
-
-  return 'Color'
-}
-
-
 </script>
 
 <style scoped>

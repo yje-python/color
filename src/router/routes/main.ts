@@ -4,6 +4,7 @@ import DebugView from '@/views/DebugView.vue'
 import CategoryView from '@/views/CategoryView.vue'
 import RandomView from '@/views/RandomView.vue'
 import ColorDetailView from '@/views/ColorDetailView.vue'
+import PaletteDetailView from '@/views/PaletteDetailView.vue'
 
 export default [
   {
@@ -32,8 +33,13 @@ export default [
     component: RandomView,
   },
   {
-    path: '/detail',
-    name: 'detail',
+    path: '/color/:hex',
+    name: 'color-detail',
     component: ColorDetailView,
   },
+    {
+      path: '/palette',
+      name: 'palette-detail',
+      component: PaletteDetailView,
+    },
 ]
