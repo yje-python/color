@@ -1,203 +1,536 @@
 <template>
-  <div class="home-view">
+  <div class="layout">
 
-    <!-- 🔥 COLOR 타이틀 -->
-    <div
-      class="title-section"
-      @click="randomizeAll"
-      @mouseenter="hover = true"
-      @mouseleave="hover = false"
-    >
-      <div
-        v-for="(img, i) in images"
-        :key="i"
-        class="letter-wrapper"
-      >
-        <div
-          class="letter-mask"
-          :class="{ wave: hover }"
-          :style="getMaskStyle(img, i)"
-        />
+    <!-- 🔥 사이드바 -->
+    <Sidebar />
+
+    <!-- 🔥 메인 컨텐츠 -->
+    <main class="category-page">
+
+      <div class="category-header">
+
+        <!-- 선택된 색 -->
+        <div class="category-badge">
+          {{ selectedCategory }}
+        </div>
+
+        <!-- 밝기 필터 -->
+        <div class="filter-buttons">
+          <button
+            :class="{ active: brightness === 'all' }"
+            @click="setBrightness('all')"
+          >
+            All
+          </button>
+
+          <button
+            :class="{ active: brightness === 'light' }"
+            @click="setBrightness('light')"
+          >
+            Light
+          </button>
+
+          <button
+            :class="{ active: brightness === 'dark' }"
+            @click="setBrightness('dark')"
+          >
+            Dark
+          </button>
+        </div>
+
       </div>
-    </div>
 
-    <!-- 검색창 -->
-    <div class="search-box">
-      <span class="magnifying-glass">🔍</span>
-      <input class="search-input" placeholder="검색" />
-    </div>
+      <!-- 색상 카드 -->
+      <div class="color-grid">
+        <div
+          v-for="color in filteredColors"
+          :key="color.code"
+          class="color-card"
+        >
+          <div
+            class="color-preview"
+            :style="{ backgroundColor: color.code }"
+          />
+          <p class="color-code">{{ color.code }}</p>
+        </div>
+      </div>
 
-    <!-- 버튼 -->
-    <div class="button-container">
-      <button class="action-button">
-        랜덤 컬러 팔레트 생성
-      </button>
-
-      <button class="action-button" @click="goCategory">
-        색상별 모아보기
-      </button>
-
-      <button class="action-button" @click="goRandom">
-        색상 뽑기
-      </button>
-    </div>
+    </main>
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed } from 'vue'
+import Sidebar from '@/views/Sidebar.vue'
+import { useColorStore } from '@/stores/color'
 
-/* 🔥 PNG import */
-import c from '@/assets/title_c.png'
-import o1 from '@/assets/title_o1.png'
-import l from '@/assets/title_l.png'
-import o2 from '@/assets/title_o2.png'
-import r from '@/assets/title_r.png'
-import s from '@/assets/title_s.png'
+import { BASE_COLOR_RANGES } from '@/constants/baseColors'
+import { ACHROMATIC_RULES } from '@/constants/colorRules'
+import { STYLE_RULES } from '@/constants/styleRules'
 
-const router = useRouter()
+const colorStore = useColorStore()
 
-const goCategory = () => router.push('/category')
-const goRandom = () => router.push('/random')
+const brightness = ref<'all' | 'light' | 'dark'>('all')
 
-/* 🔥 이미지 리스트 */
-const images = [c, o1, l, o2, r, s]
+/* ===== 전체 색상 자동 생성 ===== */
+const allColors = computed(() => {
 
-/* hover 상태 */
-const hover = ref(false)
+  const colors: {
+    code: string
+    category: string
+    tone: string
+    styles: string[]
+  }[] = []
 
-/* 색상 */
-const color = ref('#ffffff')
+  for (let r = 0; r <= 255; r += 16) {
 
-/* 🔥 mask 스타일 */
-const getMaskStyle = (img: string, i: number) => ({
-  backgroundColor: color.value,
+    for (let g = 0; g <= 255; g += 16) {
 
-  maskImage: `url(${img})`,
-  WebkitMaskImage: `url(${img})`,
+      for (let b = 0; b <= 255; b += 16) {
 
-  maskRepeat: 'no-repeat',
-  WebkitMaskRepeat: 'no-repeat',
+        const hex =
+          `#${r.toString(16).padStart(2, '0')}` +
+          `${g.toString(16).padStart(2, '0')}` +
+          `${b.toString(16).padStart(2, '0')}`
 
-  maskSize: 'contain',
-  WebkitMaskSize: 'contain',
+        colors.push({
+          code: hex,
 
-  maskPosition: 'center',
-  WebkitMaskPosition: 'center',
+          category: getCategory(hex),
 
-  animationDelay: `${i * 0.12}s`
+          tone: getTone(hex),
+
+          styles: getStyles(hex),
+        })
+      }
+    }
+  }
+
+  return colors
 })
 
-/* 🔥 색 랜덤 */
-const randomizeAll = () => {
-  const hue = Math.random() * 360
-  color.value = `hsl(${hue}, 70%, 60%)`
+/* ===== HEX -> HSV ===== */
+const hexToHSV = (hex: string) => {
+
+  const r = parseInt(hex.slice(1, 3), 16) / 255
+  const g = parseInt(hex.slice(3, 5), 16) / 255
+  const b = parseInt(hex.slice(5, 7), 16) / 255
+
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+
+  const delta = max - min
+
+  let h = 0
+
+  if (delta !== 0) {
+
+    if (max === r) {
+      h = ((g - b) / delta) % 6
+    }
+    else if (max === g) {
+      h = (b - r) / delta + 2
+    }
+    else {
+      h = (r - g) / delta + 4
+    }
+
+    h *= 60
+
+    if (h < 0) {
+      h += 360
+    }
+  }
+
+  const s = max === 0
+    ? 0
+    : (delta / max) * 100
+
+  const v = max * 100
+
+  return {
+    h,
+    s,
+    v,
+  }
+}
+
+/* ===== 무채색 분류 ===== */
+const getAchromaticCategory = (
+  s: number,
+  v: number,
+) => {
+
+  if (
+    v <= ACHROMATIC_RULES.black.maxV
+  ) {
+    return 'black'
+  }
+
+  if (
+    v >= ACHROMATIC_RULES.white.minV &&
+    s <= ACHROMATIC_RULES.white.maxS
+  ) {
+    return 'white'
+  }
+
+  if (
+    s <= ACHROMATIC_RULES.gray.maxS
+  ) {
+    return 'gray'
+  }
+
+  return null
+}
+
+/* ===== 유채색 분류 ===== */
+const getChromaticCategory = (
+  h: number,
+) => {
+
+  for (const color of BASE_COLOR_RANGES) {
+
+    if (color.name === 'red') {
+
+      if (
+        h >= color.min ||
+        h < color.max
+      ) {
+        return color.name
+      }
+    }
+
+    else {
+
+      if (
+        h >= color.min &&
+        h < color.max
+      ) {
+        return color.name
+      }
+    }
+  }
+
+  return 'unknown'
+}
+
+/* ===== 최종 카테고리 ===== */
+const getCategory = (hex: string) => {
+
+  const { h, s, v } = hexToHSV(hex)
+
+  const achromatic = getAchromaticCategory(
+    s,
+    v,
+  )
+
+  if (achromatic) {
+    return achromatic
+  }
+
+  return getChromaticCategory(h)
+}
+
+/* ===== Tone ===== */
+const getTone = (hex: string) => {
+
+  const { v } = hexToHSV(hex)
+
+  if (v >= 75) {
+    return 'light'
+  }
+
+  if (v > 35) {
+    return 'normal'
+  }
+
+  return 'dark'
+}
+
+/* ===== Style ===== */
+const getStyles = (hex: string) => {
+
+  const { h, s, v } = hexToHSV(hex)
+
+  const styles: string[] = []
+
+  /* vivid */
+  if (
+    s >= STYLE_RULES.vivid.minS &&
+    v >= STYLE_RULES.vivid.minV
+  ) {
+    styles.push('vivid')
+  }
+
+  /* muted */
+  if (
+    s >= STYLE_RULES.muted.minS &&
+    s < STYLE_RULES.muted.maxS
+  ) {
+    styles.push('muted')
+  }
+
+  /* pastel */
+  if (
+    v >= STYLE_RULES.pastel.minV &&
+    s < STYLE_RULES.pastel.maxS
+  ) {
+    styles.push('pastel')
+  }
+
+  /* neon */
+  if (
+    v >= STYLE_RULES.neon.minV &&
+    s >= STYLE_RULES.neon.minS
+  ) {
+    styles.push('neon')
+  }
+
+  /* vintage */
+  if (
+    s < STYLE_RULES.vintage.maxS &&
+    v >= STYLE_RULES.vintage.minV &&
+    v < STYLE_RULES.vintage.maxV
+  ) {
+    styles.push('vintage')
+  }
+
+  /* earth */
+  if (
+    h >= STYLE_RULES.earth.minH &&
+    h < STYLE_RULES.earth.maxH &&
+    s >= STYLE_RULES.earth.minS &&
+    s < STYLE_RULES.earth.maxS &&
+    v >= STYLE_RULES.earth.minV &&
+    v < STYLE_RULES.earth.maxV
+  ) {
+    styles.push('earth')
+  }
+
+  /* warm */
+  if (
+    h < 70 ||
+    h >= 300
+  ) {
+    styles.push('warm')
+  }
+
+  /* cool */
+  else {
+    styles.push('cool')
+  }
+
+  /* spring */
+  if (
+    styles.includes('warm') &&
+    v >= STYLE_RULES.spring.minV &&
+    s >= STYLE_RULES.spring.minS
+  ) {
+    styles.push('spring')
+  }
+
+  /* summer */
+  if (
+    styles.includes('cool') &&
+    v >= STYLE_RULES.summer.minV &&
+    s < STYLE_RULES.summer.maxS
+  ) {
+    styles.push('summer')
+  }
+
+  /* fall */
+  if (
+    styles.includes('warm') &&
+    v < STYLE_RULES.fall.maxV &&
+    s < STYLE_RULES.fall.maxS
+  ) {
+    styles.push('fall')
+  }
+
+  /* winter */
+  if (
+    styles.includes('cool') &&
+    s >= STYLE_RULES.winter.minS &&
+    v >= STYLE_RULES.winter.minV
+  ) {
+    styles.push('winter')
+  }
+
+  return styles
+}
+
+/* ===== 선택된 카테고리 ===== */
+const selectedCategory = computed(
+  () => colorStore.selectedCategory
+)
+
+/* ===== 최종 필터 ===== */
+const filteredColors = computed(() => {
+
+  return allColors.value.filter(color => {
+
+    const category =
+      getCategory(color.code)
+
+    const styles =
+      getStyles(color.code)
+
+    const selected =
+      selectedCategory.value
+
+    const categoryMatch =
+      category === selected
+
+    const styleMatch =
+      styles.includes(selected)
+
+    if (
+      !categoryMatch &&
+      !styleMatch
+    ) {
+      return false
+    }
+
+    if (
+      brightness.value === 'all'
+    ) {
+      return true
+    }
+
+    return (
+      getTone(color.code)
+      === brightness.value
+    )
+  })
+})
+
+/* ===== 이벤트 ===== */
+const setBrightness = (
+  type: 'all' | 'light' | 'dark'
+) => {
+  brightness.value = type
 }
 </script>
 
 <style scoped>
-.home-view {
-  width: 100vw;
-  min-height: calc(100vh - 70px);
+/* ===== 전체 레이아웃 ===== */
+.layout {
+  display: flex;
+}
+
+/* ===== 메인 영역 ===== */
+.category-page {
+  margin-left: 260px;     /* 🔥 sidebar width */
+  margin-top: 64px;       /* 🔥 navbar 고려 */
+
+  width: 100%;
+  min-height: calc(100vh - 64px);
+
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ===== 헤더 ===== */
+.category-header {
+  margin-bottom: 40px;
+
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* 색상 배지 */
+.category-badge {
+  padding: 12px 28px;
+  border: 2px solid #ddd;
+  border-radius: 24px;
+
+  font-size: 20px;
+  font-weight: bold;
+}
+
+/* 필터 버튼 */
+.filter-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-buttons button {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: none;
+  background: #e5e5e5;
+  cursor: pointer;
+}
+
+.filter-buttons button.active {
+  background: #333;
+  color: #fff;
+}
+
+/* ===== 카드 그리드 ===== */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 140px);
+  gap: 24px;
+  justify-content: start;
+}
+/* 태블릿 */
+@media (max-width: 1200px) {
+  .color-grid {
+    grid-template-columns: repeat(4, 140px);
+  }
+}
+
+/* 모바일 */
+@media (max-width: 900px) {
+  .color-grid {
+    grid-template-columns: repeat(3, 140px);
+  }
+}
+
+@media (max-width: 600px) {
+  .color-grid {
+    grid-template-columns: repeat(2, 140px);
+  }
+}
+
+/* 카드 */
+.color-card {
+  width: 140px;
+  background: #fff;
+
+  border-radius: 12px;
+  overflow: hidden;
+
+  box-shadow: 4px 4px 8px rgba(0,0,0,0.2);
 
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+
+  transition: 0.2s;
 }
 
-/* ===== 타이틀 ===== */
-.title-section {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 20px;
-  margin-bottom: 60px;
-  cursor: pointer;
+.color-card:hover {
+  transform: translateY(-4px);
 }
 
-/* wrapper */
-.letter-wrapper {
-  width: 80px;
-  height: 80px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* 🔥 핵심: mask */
-.letter-mask {
+/* 색상 영역 */
+.color-preview {
   width: 100%;
-  height: 100%;
+  height: 120px;
 }
 
-/* 🔥 wave 애니메이션 */
-.wave {
-  animation: waveAnim 0.8s ease-in-out infinite;
-}
+/* HEX */
+.color-code {
+  width: 100%;
+  padding: 10px;
 
-@keyframes waveAnim {
-  0%   { transform: translateY(0); }
-  30%  { transform: translateY(-12px); }
-  60%  { transform: translateY(0); }
-  100% { transform: translateY(0); }
-}
-
-/* ===== 검색창 ===== */
-.search-box {
-  width: 600px;
-  height: 50px;
-
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  padding: 0 16px;
-
-  background-color: #fafafa;
-  border: 1px solid #e5e5e5;
-  box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
-
-  margin-bottom: 60px;
-}
-
-.search-input {
-  border: none;
-  outline: none;
-  flex: 1;
-  font-size: 18px;
-  background: transparent;
-}
-
-.magnifying-glass {
-  font-size: 18px;
-  color: #888;
-}
-
-/* ===== 버튼 ===== */
-.button-container {
-  display: flex;
-  gap: 30px;
-}
-
-.action-button {
-  width: 260px;
-  height: 50px;
-
-  background-color: #fafafa;
-  border: 1px solid #e5e5e5;
-  box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
-
+  text-align: center;
   font-weight: bold;
-  font-size: 16px;
-
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.action-button:hover {
-  background-color: #f0f0f0;
 }
 </style>

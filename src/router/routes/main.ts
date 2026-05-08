@@ -3,6 +3,7 @@ import TestView from '@/views/TestView.vue'
 import DebugView from '@/views/DebugView.vue'
 import CategoryView from '@/views/CategoryView.vue'
 import RandomView from '@/views/RandomView.vue'
+import ColorDetailView from '@/views/ColorDetailView.vue'
 
 export default [
   {
@@ -29,5 +30,10 @@ export default [
     path: '/random',
     name: 'random',
     component: RandomView,
+  },
+  {
+    path: '/detail',
+    name: 'detail',
+    component: ColorDetailView,
   },
 ]

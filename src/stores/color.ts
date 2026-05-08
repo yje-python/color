@@ -6,7 +6,7 @@ export const useColorStore = defineStore('color', {
     palette: [] as string[],
 
     /* 🔥 추가 */
-    selectedCategory: 'Red',
+    selectedCategory: 'red',
   }),
 
   actions: {
