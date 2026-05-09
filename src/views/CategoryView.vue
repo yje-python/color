@@ -273,29 +273,58 @@ const getAchromaticCategory = (
 /* ===== 유채색 ===== */
 const getChromaticCategory = (
   h: number,
+  s: number,
+  v: number,
 ) => {
 
   for (const color of BASE_COLOR_RANGES) {
 
-    if (color.name === 'red') {
+    /* ===== hue 범위 ===== */
+    const hueMatch =
+      color.name === 'red'
 
-      if (
-        h >= color.min ||
-        h < color.max
-      ) {
-        return color.name
+        ? (
+            h >= color.min ||
+            h < color.max
+          )
+
+        : (
+            h >= color.min &&
+            h < color.max
+          )
+
+    if (!hueMatch) {
+      continue
+    }
+
+    /* ===== 최소 채도 ===== */
+    if (
+      color.minS !== undefined &&
+      s < color.minS
+    ) {
+      continue
+    }
+
+    /* ===== 최소 명도 ===== */
+    if (
+      color.minV !== undefined &&
+      v < color.minV
+    ) {
+      continue
+    }
+
+    /* ===== custom filter ===== */
+    if (color.filter) {
+
+      const passed =
+        color.filter(s, v)
+
+      if (!passed) {
+        continue
       }
     }
 
-    else {
-
-      if (
-        h >= color.min &&
-        h < color.max
-      ) {
-        return color.name
-      }
-    }
+    return color.name
   }
 
   return 'unknown'
@@ -313,7 +342,7 @@ const getCategory = (hex: string) => {
     return achromatic
   }
 
-  return getChromaticCategory(h)
+  return getChromaticCategory(h, s, v)
 }
 
 /* ===== tone ===== */
@@ -608,53 +637,126 @@ const toggleStyle = (style: string) => {
 /* ===== 필터 ===== */
 const filteredColors = computed(() => {
 
-  return allColors.value.filter(color => {
+  return allColors.value
 
-    /* ===== category ===== */
-    const categoryMatch =
-      color.category === selectedCategory.value
+    .filter(color => {
 
-    const styleCategoryMatch =
-      color.styles.includes(
-        selectedCategory.value
-      )
+      /* ===== category ===== */
+      const categoryMatch =
+        color.category === selectedCategory.value
 
-    if (
-      !categoryMatch &&
-      !styleCategoryMatch
-    ) {
-      return false
-    }
+      const styleCategoryMatch =
+        color.styles.includes(
+          selectedCategory.value
+        )
 
-    /* ===== 스타일 필터 없음 ===== */
-    if (
-      selectedStyles.value.length === 0
-    ) {
-      return true
-    }
-
-    /* ===== 다중 스타일 필터 ===== */
-    return selectedStyles.value.every(style => {
-
-      /* light / dark */
       if (
-        style === 'light' ||
-        style === 'dark'
+        !categoryMatch &&
+        !styleCategoryMatch
       ) {
-        return color.tone === style
+        return false
       }
 
-      /* vivid / mute */
-      if (style === 'vivid') {
-        return color.saturationType === 'vivid'
+      /* ===== 스타일 필터 없음 ===== */
+      if (
+        selectedStyles.value.length === 0
+      ) {
+        return true
       }
 
-      if (style === 'mute') {
-        return color.saturationType === 'muted'
-      }
+      /* ===== 다중 스타일 필터 ===== */
+      return selectedStyles.value.every(style => {
 
-      return true
+        /* light / dark */
+        if (
+          style === 'light' ||
+          style === 'dark'
+        ) {
+          return color.tone === style
+        }
+
+        /* vivid / mute */
+        if (style === 'vivid') {
+          return color.saturationType === 'vivid'
+        }
+
+        if (style === 'mute') {
+          return color.saturationType === 'muted'
+        }
+
+        return true
+      })
     })
+
+    /* ===== HSV 정렬 ===== */
+  .sort((a, b) => {
+
+    const hsvA = hexToHSV(a.code)
+    const hsvB = hexToHSV(b.code)
+
+    const getTargetHue = (
+      category: string
+    ) => {
+
+      const targets: Record<string, number> = {
+        red: 0,
+        orange: 30,
+        yellow: 60,
+        lime: 90,
+        green: 120,
+        teal: 180,
+        blue: 220,
+        navy: 240,
+        purple: 270,
+        pink: 320,
+      }
+
+      return targets[category] ?? 0
+    }
+
+    const targetHue =
+      getTargetHue(selectedCategory.value)
+
+    const getScore = (
+      h: number,
+      s: number,
+      v: number
+    ) => {
+
+      /* hue 거리 */
+      let hueDistance =
+        Math.abs(h - targetHue)
+
+      if (hueDistance > 180) {
+        hueDistance =
+          360 - hueDistance
+      }
+
+      /* hue 가까울수록 좋음 */
+      const hueScore =
+        100 - hueDistance
+
+      /* 채도 높을수록 좋음 */
+      const saturationScore = s
+
+      /* 너무 밝거나 어두우면 감점 */
+      const valueScore =
+        100 - Math.abs(v - 60)
+
+      return (
+        hueScore * 3 +
+        saturationScore * 2 +
+        valueScore
+      )
+    }
+
+    const scoreA =
+      getScore(hsvA.h, hsvA.s, hsvA.v)
+
+    const scoreB =
+      getScore(hsvB.h, hsvB.s, hsvB.v)
+
+    return scoreB - scoreA
   })
 })
 

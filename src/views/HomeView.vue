@@ -65,7 +65,7 @@
 
     <!-- 버튼 -->
     <div class="button-container">
-      <button class="action-button">
+      <button class="action-button" @click="goRandomPalette">
         랜덤 컬러 팔레트 생성
       </button>
 
@@ -76,6 +76,69 @@
       <button class="action-button" @click="goRandom">
         색상 뽑기
       </button>
+    </div>
+
+    <!-- ===== color info ===== -->
+    <div class="color-info-row">
+
+      <!-- outline -->
+      <div
+        class="color-info-card"
+        @click="
+          router.push(
+            `/color/${outlineColor.replace('#', '')}`
+          )
+        "
+      >
+
+        <div
+          class="color-preview"
+          :style="{
+            background: outlineColor
+          }"
+        ></div>
+
+        <div class="color-info-text">
+          <p class="color-label">
+            Outline
+          </p>
+
+          <p class="color-hex">
+            {{ outlineColor }}
+          </p>
+        </div>
+
+      </div>
+
+      <!-- fill -->
+      <div
+        class="color-info-card"
+        @click="
+          router.push(
+            `/color/${fillColor.replace('#', '')}`
+          )
+        "
+      >
+
+        <div
+          class="color-preview"
+          :style="{
+            background: fillColor
+          }"
+        ></div>
+
+        <div class="color-info-text">
+          <p class="color-label">
+            Fill
+          </p>
+
+          <p class="color-hex">
+            {{ fillColor }}
+          </p>
+        </div>
+
+      </div>
+
     </div>
 
   </div>
@@ -105,6 +168,7 @@ const router = useRouter()
 
 const goCategory = () => router.push('/category')
 const goRandom = () => router.push('/random')
+const goRandomPalette = () => router.push('/random-palette')
 
 /* 🔥 이미지 세트 */
 const letters = [
@@ -447,5 +511,84 @@ const searchHex = () => {
 
 .action-button:hover {
   background-color: #f0f0f0;
+}
+
+/* ===== color info ===== */
+.color-info-row {
+
+  display: flex;
+  gap: 20px;
+
+  margin-top: 50px;
+}
+
+.color-info-card {
+
+  width: 240px;
+  height: 72px;
+
+  padding: 12px 16px;
+
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  background: #fafafa;
+
+  border:
+    1px solid #e5e5e5;
+
+  box-shadow:
+    2px 2px 6px rgba(0,0,0,0.08);
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.color-info-card:hover {
+
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 8px 18px rgba(0,0,0,0.12);
+}
+
+.color-preview {
+
+  width: 48px;
+  height: 48px;
+
+  border-radius: 12px;
+
+  border:
+    1px solid rgba(0,0,0,0.08);
+
+  flex-shrink: 0;
+}
+
+.color-info-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.color-label {
+
+  margin: 0 0 4px;
+
+  font-size: 13px;
+  color: #888;
+
+  font-weight: 600;
+}
+
+.color-hex {
+
+  margin: 0;
+
+  font-size: 16px;
+  font-weight: 700;
+
+  color: #222;
 }
 </style>

@@ -24,7 +24,9 @@
           >
             <div
               class="palette-chip"
-              :style="{ backgroundColor: color }"  
+              :style="{
+                backgroundColor: color
+              }"
               @click="
                 router.push(
                   `/color/${color.replace('#', '')}`
@@ -81,19 +83,25 @@
             class="example"
             :style="{
               background: isDark
-                ? darkBg
+                ? '#121212'
                 : '#ffffff',
 
-              border: `1px solid ${hexToRgba(mainColor, 0.15)}`,
+              border: isDark
+                ? '1px solid rgba(255,255,255,0.08)'
+                : `1px solid ${hexToRgba(mainColor, 0.15)}`,
 
-              boxShadow: `0 10px 30px ${hexToRgba(mainColor, 0.12)}`
+              boxShadow: isDark
+                ? '0 10px 30px rgba(0,0,0,0.45)'
+                : `0 10px 30px ${hexToRgba(mainColor, 0.12)}`
             }"
           >
             <h2
+              class="example-title"
               :style="{
                 color: isDark
-                  ? lightBg
-                  : mainColor
+                  ? '#d4d4d4'
+                  : '#555555',
+                borderColor: mainColor
               }"
             >
               Title
@@ -156,6 +164,22 @@
 
         </div>
 
+        <!-- ===== Blended ===== -->
+        <div class="blended-section">
+
+          <h3 class="blended-title">
+            Blended
+          </h3>
+
+          <div
+            class="blended-box"
+            :style="{
+              background: blendedGradient
+            }"
+          ></div>
+
+        </div>
+
       </div>
     </div>
 
@@ -209,6 +233,8 @@ const lightBg = computed(() => {
   return palette.value[4]
 })
 
+
+
 /* ===== hex -> rgba ===== */
 const hexToRgba = (
   hex: string,
@@ -221,6 +247,97 @@ const hexToRgba = (
 
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
+
+const mixColors = (
+  color1: string,
+  color2: string
+) => {
+
+  const r1 =
+    parseInt(color1.slice(1, 3), 16)
+
+  const g1 =
+    parseInt(color1.slice(3, 5), 16)
+
+  const b1 =
+    parseInt(color1.slice(5, 7), 16)
+
+  const r2 =
+    parseInt(color2.slice(1, 3), 16)
+
+  const g2 =
+    parseInt(color2.slice(3, 5), 16)
+
+  const b2 =
+    parseInt(color2.slice(5, 7), 16)
+
+  const r =
+    Math.round((r1 + r2) / 2)
+
+  const g =
+    Math.round((g1 + g2) / 2)
+
+  const b =
+    Math.round((b1 + b2) / 2)
+
+  return (
+    `#${r.toString(16).padStart(2, '0')}` +
+    `${g.toString(16).padStart(2, '0')}` +
+    `${b.toString(16).padStart(2, '0')}`
+  )
+}
+
+const blendedGradient = computed(() => {
+
+  const expanded: string[] = []
+
+  for (
+    let i = 0;
+    i < palette.value.length - 1;
+    i++
+  ) {
+
+    const current =
+      palette.value[i]
+
+    const next =
+      palette.value[i + 1]
+
+    expanded.push(current)
+
+    /* ===== 중간 보간색 ===== */
+    expanded.push(
+      mixColors(current, next)
+    )
+  }
+
+  expanded.push(
+    palette.value[
+      palette.value.length - 1
+    ]
+  )
+
+  const total =
+    expanded.length - 1
+
+  const stops =
+    expanded.map((color, index) => {
+
+      const percent =
+        Math.round(
+          (index / total) * 100
+        )
+
+      return `${color} ${percent}%`
+    })
+
+  return `
+    linear-gradient(
+      135deg,
+      ${stops.join(',')}
+    )
+  `
+})
 </script>
 
 <style scoped>
@@ -354,6 +471,17 @@ const hexToRgba = (
   border-radius: 12px;
 }
 
+.example-title {
+
+  display: inline-block;
+
+  padding-bottom: 6px;
+
+  border-bottom: 4px solid;
+
+  margin-bottom: 20px;
+}
+
 /* 다크모드 */
 .example.dark {
   background: #121212;
@@ -395,5 +523,33 @@ const hexToRgba = (
 .btn.outline {
   background: transparent;
   border: 2px solid;
+}
+
+/* ===== blended ===== */
+.blended-section {
+  margin-top: 40px;
+}
+
+.blended-title {
+  margin-bottom: 14px;
+
+  font-size: 22px;
+  font-weight: 700;
+
+  color: #333;
+}
+
+.blended-box {
+
+  width: 100%;
+  height: 180px;
+
+  border-radius: 24px;
+
+  box-shadow:
+    0 12px 28px rgba(0,0,0,0.12);
+
+  border:
+    1px solid rgba(255,255,255,0.18);
 }
 </style>
