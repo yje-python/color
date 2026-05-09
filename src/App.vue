@@ -1,13 +1,23 @@
 <template>
-  <div id="app">
+
     <Navbar />
     <router-view />
-  </div>
+
 </template>
 
 <script setup>
 import Navbar from './layout/Navbar.vue'
 import HomeView from './views/HomeView.vue'
+import { onMounted } from 'vue'
+
+import { useAuthStore }
+  from '@/stores/auth'
+
+const authStore = useAuthStore()
+
+onMounted(() => {
+  authStore.loadUser()
+})
 </script>
 
 <style>

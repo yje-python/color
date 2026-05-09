@@ -288,14 +288,81 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
+import {
+  likeColor,
+  getLikedColors,
+  unlikeColor,
+} from '@/api/colors'
 
 const route = useRoute()
 const router = useRouter()
+import { useAuthStore }
+  from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 const isFavorite = ref(false)
+const checkFavorite = async () => {
 
-const toggleFavorite = () => {
-  isFavorite.value = !isFavorite.value
+  if (!authStore.user) {
+    return
+  }
+
+  const USER_ID = authStore.user.id
+
+  try {
+
+    const likedColors =
+      await getLikedColors()
+
+    isFavorite.value =
+      likedColors.some(
+        (item: any) =>
+          item.user === USER_ID &&
+          item.hex_code.toLowerCase()
+          === currentHex.value.toLowerCase()
+      )
+
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const toggleFavorite = async () => {
+
+  if (!authStore.user) {
+
+    alert('로그인이 필요합니다')
+
+    return
+  }
+
+  const USER_ID = authStore.user.id
+
+  try {
+
+    if (isFavorite.value) {
+
+      await unlikeColor(
+        USER_ID,
+        currentHex.value
+      )
+
+      isFavorite.value = false
+
+      return
+    }
+
+    await likeColor(
+      USER_ID,
+      currentHex.value
+    )
+
+    isFavorite.value = true
+
+  } catch (err) {
+    console.error(err)
+  }
 }
 
 const selectedPalette = ref('monochrome')
@@ -327,6 +394,8 @@ const fetchColor = async () => {
     await fetchPalette()
 
     await fetchSimilarColors()
+
+    await checkFavorite()
 
   } catch (err) {
     console.error(err)

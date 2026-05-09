@@ -37,6 +37,22 @@
           </div>
         </div>
 
+        <div
+          class="favorite-badge"
+          :class="{ active: isFavorite }"
+          @click="toggleFavorite"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path
+              class="star"
+              d="M12 17.27L18.18 21 16.54 13.97 
+              22 9.24 14.81 8.63 12 2 
+              9.19 8.63 2 9.24 7.46 
+              13.97 5.82 21z"
+            />
+          </svg>
+        </div>
+
         <!-- 🔥 UI 예시 영역 -->
         <div class="example-section">
 
@@ -182,16 +198,29 @@
 
       </div>
     </div>
-
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import {
+  computed,
+  ref,
+  onMounted,
+} from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import {
+  savePalette,
+  getSavedPalettes,
+  deletePalette
+} from '@/api/colors'
+import { useAuthStore }
+  from '@/stores/auth'
+
+const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 const isDark = ref(false)
+const isFavorite = ref(false)
 
 /* ===== palette ===== */
 const palette = computed(() => {
@@ -212,6 +241,10 @@ const palette = computed(() => {
   return raw.split(',')
 })
 
+const paletteKey = computed(() => {
+  return palette.value.join(',')
+})
+
 /* ===== 핵심 색 ===== */
 const mainColor = computed(() => {
   return palette.value[2]
@@ -224,16 +257,6 @@ const secondaryColor = computed(() => {
 const accentColor = computed(() => {
   return palette.value[3]
 })
-
-const darkBg = computed(() => {
-  return palette.value[0]
-})
-
-const lightBg = computed(() => {
-  return palette.value[4]
-})
-
-
 
 /* ===== hex -> rgba ===== */
 const hexToRgba = (
@@ -337,6 +360,74 @@ const blendedGradient = computed(() => {
       ${stops.join(',')}
     )
   `
+})
+
+const checkFavorite = async () => {
+
+  if (!authStore.user) {
+    return
+  }
+
+  const USER_ID = authStore.user.id
+
+  try {
+
+    const palettes =
+      await getSavedPalettes()
+
+    isFavorite.value =
+      palettes.some(
+        (item: any) =>
+          item.user === USER_ID &&
+          JSON.stringify(item.colors)
+          ===
+          JSON.stringify(palette.value)
+      )
+
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const toggleFavorite = async () => {
+
+  if (!authStore.user) {
+
+    alert('로그인이 필요합니다')
+
+    return
+  }
+
+  const USER_ID = authStore.user.id
+
+  try {
+
+    if (isFavorite.value) {
+
+      await deletePalette(
+        USER_ID,
+        palette.value
+      )
+
+      isFavorite.value = false
+
+      return
+    }
+
+    await savePalette(
+      USER_ID,
+      palette.value
+    )
+
+    isFavorite.value = true
+
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+onMounted(() => {
+  checkFavorite()
 })
 </script>
 
@@ -551,5 +642,43 @@ const blendedGradient = computed(() => {
 
   border:
     1px solid rgba(255,255,255,0.18);
+}
+
+/* ===== favorite ===== */
+
+.favorite-badge {
+
+  width: 42px;
+  height: 42px;
+
+  margin: 0 auto 30px;
+
+  border-radius: 50%;
+
+  background: #e0e0e0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.favorite-badge:hover {
+  transform: scale(1.08);
+}
+
+.star {
+  fill: #777;
+}
+
+.favorite-badge.active {
+  background: #ffe082;
+}
+
+.favorite-badge.active .star {
+  fill: #ffb300;
 }
 </style>

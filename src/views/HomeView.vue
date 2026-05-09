@@ -385,13 +385,19 @@ const searchHex = () => {
 
 <style scoped>
 .home-view {
-  width: 100vw;
+
+  width: 100%;
+
   min-height: calc(100vh - 70px);
 
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+
+  padding-top: 120px;
+  padding-bottom: 80px;
+
+  box-sizing: border-box;
 }
 
 /* ===== 타이틀 ===== */
