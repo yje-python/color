@@ -1,0 +1,175 @@
+[
+  {
+    "hex": "#bcbcc0",
+    "h": 240.0,
+    "s": 2.08,
+    "v": 75.29,
+    "a": null,
+    "b": null,
+    "styles": [
+      "cool",
+      "summer"
+    ],
+    "metallics": [
+      "silver"
+    ]
+  },
+  {
+    "hex": "#c0c0c4",
+    "h": 240.0,
+    "s": 2.04,
+    "v": 76.86,
+    "a": null,
+    "b": null,
+    "styles": [
+      "cool",
+      "summer"
+    ],
+    "metallics": [
+      "silver"
+    ]
+  },
+  {
+    "hex": "#c4c4c8",
+    "h": 240.0,
+    "s": 2.0,
+    "v": 78.43,
+    "a": null,
+    "b": null,
+    "styles": [
+      "cool",
+      "summer"
+    ],
+    "metallics": [
+      "silver"
+    ]
+  },
+  {
+    "hex": "#c8c8cc",
+    "h": 240.0,
+    "s": 1.96,
+    "v": 80.0,
+    "a": null,
+    "b": null,
+    "styles": [
+      "pastel",
+      "cool",
+      "summer"
+    ],
+    "metallics": [
+      "silver"
+    ]
+  },
+  {
+    "hex": "#ccccd0",
+    "h": 240.0,
+    "s": 1.92,
+    "v": 81.57,
+    "a": null,
+    "b": null,
+    "styles": [
+      "pastel",
+      "cool",
+      "summer"
+    ],
+    "metallics": [
+      "silver"
+    ]
+  },
+  {
+    "hex": "#d0d0d4",
+    "h": 240.0,
+    "s": 1.89,
+    "v": 83.14,
+    "a": null,
+    "b": null,
+    "styles": [
+      "pastel",
+      "cool",
+      "summer"
+    ],
+    "metallics": [
+      "silver"
+    ]
+  },
+  {
+    "hex": "#d4d4d8",
+    "h": 240.0,
+    "s": 1.85,
+    "v": 84.71,
+    "a": null,
+    "b": null,
+    "styles": [
+      "pastel",
+      "cool",
+      "summer"
+    ],
+    "metallics": [
+      "silver"
+    ]
+  },
+  {
+    "hex": "#d8d8dc",
+    "h": 240.0,
+    "s": 1.82,
+    "v": 86.27,
+    "a": null,
+    "b": null,
+    "styles": [
+      "pastel",
+      "cool",
+      "summer"
+    ],
+    "metallics": [
+      "silver"
+    ]
+  },
+  {
+    "hex": "#dcdce0",
+    "h": 240.0,
+    "s": 1.79,
+    "v": 87.84,
+    "a": null,
+    "b": null,
+    "styles": [
+      "pastel",
+      "cool",
+      "summer"
+    ],
+    "metallics": [
+      "silver"
+    ]
+  },
+  {
+    "hex": "#e0e0e4",
+    "h": 240.0,
+    "s": 1.75,
+    "v": 89.41,
+    "a": null,
+    "b": null,
+    "styles": [
+      "pastel",
+      "cool",
+      "summer"
+    ],
+    "metallics": [
+      "silver"
+    ]
+  },
+  {
+    "hex": "#e4e4e8",
+    "h": 240.0,
+    "s": 1.72,
+    "v": 90.98,
+    "a": null,
+    "b": null,
+    "styles": [
+      "pastel",
+      "cool",
+      "summer"
+    ],
+    "metallics": [
+      "silver"
+    ]
+  }
+]
