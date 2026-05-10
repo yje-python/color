@@ -242,7 +242,7 @@ const loadCategory = async () => {
     route.params.name as string
 
   const response = await fetch(
-    `/color_data/${type}/${name}.json`
+    `${import.meta.env.BASE_URL}color_data/${type}/${name}.json`
   )
 
   const data = await response.json()

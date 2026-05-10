@@ -241,9 +241,6 @@ const palette = computed(() => {
   return raw.split(',')
 })
 
-const paletteKey = computed(() => {
-  return palette.value.join(',')
-})
 
 /* ===== 핵심 색 ===== */
 const mainColor = computed(() => {

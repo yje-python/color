@@ -70,7 +70,7 @@ export const STYLE_RULES: Record<string, StyleRule> = {
     minV: 80,   // 봄은 무조건 밝아야 함 (80% 미만은 봄에서 퇴출)
     minS: 30,   // 너무 흐리멍덩하지 않은 생동감
     // 특정 구간(올리브/카키)에 대한 추가 필터
-    customFilter: (h: number, s: number, v: number): boolean => {
+    customFilter: (h: number, _s: number, v: number): boolean => {
       // Hue 60~85 사이(노란기 도는 초록)인데 명도가 75 미만이면 봄이 아님 (가을로 가야함)
       if (h >= 60 && h <= 85 && v < 75) return false;
       return true;
