@@ -27,8 +27,10 @@ export default [
       component: DebugView,
     },
     {
-      path: '/category',
+      path: '/category/:type/:name',
+
       name: 'category',
+
       component: CategoryView,
     },
     {
